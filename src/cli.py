@@ -343,12 +343,35 @@ def init():
     else:
         # Fallback if templates aren't found in the package path
         click.echo("⚠️  Template source not found. Creating basic placeholder rules.")
-        fallback_file = target_agents_dir / "claude_instructions.md"
+        fallback_file = target_agents_dir / "lsdf_instructions.md"
         if fallback_file.exists():
             click.echo(f"ℹ️ Preserved existing fallback rule: {fallback_file}")
         else:
             with fallback_file.open("w") as f:
                 f.write("# L-SDF Protocol\nRead .lsdf files first.")
+
+    # 5. Append instructions to any agent config files that already exist
+    instructions_path = target_agents_dir / "lsdf_instructions.md"
+    sentinel = "# L-SDF Protocol"
+    agent_configs = [
+        Path("CLAUDE.md"),
+        Path("AGENTS.md"),
+        Path(".cursorrules"),
+        Path(".github/copilot-instructions.md"),
+        Path("CONVENTIONS.md"),
+    ]
+    if instructions_path.exists():
+        instructions_text = instructions_path.read_text(encoding="utf-8")
+        for config in agent_configs:
+            if not config.exists():
+                continue
+            existing = config.read_text(encoding="utf-8")
+            if sentinel in existing:
+                click.echo(f"ℹ️  Skipped {config} (L-SDF already present)")
+            else:
+                with config.open("a", encoding="utf-8") as f:
+                    f.write(f"\n{instructions_text}")
+                click.echo(f"✅ Appended L-SDF instructions to {config}")
 
 @main.command()
 @click.argument('path', default='.')

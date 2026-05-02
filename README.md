@@ -137,20 +137,12 @@ This creates:
     ~[Pydantic,Pytest]
    ```
 
-* `.agents/`: The directory containing the Rosetta Stone instructions. Append these to your existing AI config files rather than replacing them.
+* `.agents/lsdf_instructions.md`: The unified L-SDF protocol file. `lsdf init` automatically appends it to any agent config files it finds (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.github/copilot-instructions.md`, `CONVENTIONS.md`). Files that don't exist are skipped; files that already contain the instructions are left untouched. Re-running `lsdf init` is safe.
+
+   If you add a new agent config file later, re-run `lsdf init` to append the instructions automatically. For agent tools not in the list above, append manually:
 
    ```bash
-   # for Claude Code
-   cat .agents/claude_instructions.md >> CLAUDE.md
-   # for Cursor Editor
-   cat .agents/cursor_rules.md >> .cursorrules
-   # for OpenAI Codex
-   cat .agents/codex_instructions.md >> AGENTS.md
-   # for GitHub Copilot
-   mkdir -p .github
-   cat .agents/codex_instructions.md >> .github/copilot-instructions.md
-   # for Aider
-   cat .agents/claude_instructions.md >> CONVENTIONS.md
+   cat .agents/lsdf_instructions.md >> <your-agent-config-file>
    ```
 
 * `.lsdfignore`: A file to prevent the indexer from wasting tokens on folders like node_modules or `__pycache__`.
@@ -164,6 +156,8 @@ Scan your source code to generate or update `INDEX.lsdf` maps in your source dir
 ```bash
 lsdf gen . --recursive
 ```
+
+> Run ```lsdf stats``` after your first generation to see exactly how much you're saving on your next AI coding session.
 
 ### 5. Auto-Update on GitHub Push
 
@@ -189,15 +183,13 @@ In L-SDF, sigils act as single-character semantic tags. Instead of wasting token
 | `$` | **Annotation** | Important comments, notes, caveats, or rationale. | `# TODO: handle legacy fallback` |
 | `#` | **Route** | API endpoint, webhook, or URL path. | `@app.get("/users")` |
 
+> See `SPEC.md` for the full specification.
+
 ----
 
 ## AI Agent Integration
 
-L-SDF works with your existing AI tools by providing them with a "map" to read before they ever touch your source code. To enable L-SDF awareness, you must copy the generated rules from `.agents/` into your tool's configuration file. For example:
-
-* Claude Code: Append the instructions in `.agents/claude_instructions.md` to your `CLAUDE.md`.
-* Cursor: Append the rules in `.agents/cursor_rules.md` to your `.cursorrules`.
-* GitHub Copilot: Append the contents of `.agents/codex_instructions.md` to your `.github/copilot-instructions.md`.
+L-SDF works with your existing AI tools by providing them with a "map" to read before they ever touch your source code. `lsdf init` automatically appends `.agents/lsdf_instructions.md` to any agent config files it finds in the project root. No manual copy step required.
 
 ### The Agent Workflow
 
@@ -232,9 +224,6 @@ Function count: both methods agree — 219 functions
 
 The LSDF indices are complete and accurate — every ! sigil maps exactly to a def in the source. The 9× token savings comes from the LSDF stripping docstrings, comments, implementations, and type annotation bodies, leaving only signatures and structural metadata. The payoff grows further in large repos where only a subset of modules are relevant — LSDF lets you skip loading entire files entirely.
 
-
-
-
 ----
 
 ## CLI Commands
@@ -245,10 +234,7 @@ The LSDF indices are complete and accurate — every ! sigil maps exactly to a d
 * lsdf sync: Verify that indices match the current source code (CI/CD friendly).
 * lsdf stats: Calculate your token ROI and savings.
 
-See `docs/CLI.md` for more details.
-
-Pro-Tip:
-Run lsdf stats after your first generation to see exactly how much you're saving on your next AI coding session.
+> See `docs/CLI.md` for more details.
 
 ----
 
