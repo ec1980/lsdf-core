@@ -356,12 +356,14 @@ def init():
 @click.pass_context
 def sync(ctx, path, check):
     """Verifies that indices are up-to-date."""
-    ignore_dirs = {'.git', '__pycache__', 'venv', 'node_modules', '.agents', '.idea', '.vscode'}
     verbose = ctx.obj.get("verbose", False)
+    base_path = os.path.abspath(path)
+    ignored = _load_lsdfignore(base_path)
     stale_dirs = []
 
     for root, dirs, files, _ in _iter_walk_roots(path, recursive=True, depth=None):
-        dirs[:] = [d for d in dirs if d not in ignore_dirs]
+        dirs[:] = [d for d in dirs if not _is_ignored_path(base_path, root, d, ignored)]
+        files = [f for f in files if not _is_ignored_path(base_path, root, f, ignored)]
         py_files = [os.path.join(root, file) for file in files if file.endswith('.py')]
         if not py_files:
             continue
