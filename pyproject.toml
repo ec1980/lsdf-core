@@ -11,11 +11,11 @@ dependencies = [
 ]
 
 [project.scripts]
-lsdf = "lsdf.cli:main"
+lsdf = "src.cli:main"
 
 # --- BUILD CONFIGURATION ---
 
 [tool.hatch.build.targets.wheel]
-packages = ["lsdf"]
+packages = ["src"]
 # Includes the .agents folder in the distribution
 artifacts = [".agents"]

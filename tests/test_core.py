@@ -2,8 +2,8 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from lsdf.core import from_markdown, to_markdown
-from lsdf.generators.python import PythonGenerator
+from src.core import from_markdown, to_markdown
+from src.generators.python import PythonGenerator
 
 class TestLSDF(unittest.TestCase):
     def test_translation(self):
@@ -179,7 +179,7 @@ class TestLSDF(unittest.TestCase):
 class TestCLI(unittest.TestCase):
     def setUp(self):
         from click.testing import CliRunner
-        from lsdf.cli import main
+        from src.cli import main
 
         self.runner = CliRunner()
         self.main = main

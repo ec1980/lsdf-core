@@ -229,7 +229,7 @@ The following is a response from a Claude Code session:
 Q: Is the LSDF file helpful?
 A: Yes, genuinely. The key advantages I noticed in practice today:
 
-- Faster lookup — finding to_markdown/from_markdown took one 48-line INDEX.lsdf read (~190 tokens) vs. opening core.py directly (~1,600 tokens)
+- Faster lookup — finding to_markdown/from_markdown took one 48-line INDEX.lsdf read (~190 tokens) vs. opening src/core.py directly (~1,600 tokens)
 - Structural clarity — the sigils give me unambiguous signals: ! is a function, @ is a class/file, ~ is imports. No parsing required.
 - Navigation without reads — for the PythonGenerator question, the index told me exactly what methods exist and their nesting (closures inside generate) without me touching the source file at all.
 

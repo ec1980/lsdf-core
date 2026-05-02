@@ -1,6 +1,6 @@
 @INDEX:tests
 @test_core.py
- ~[unittest, lsdf.core.{from_markdown, to_markdown}, lsdf.generators.python.PythonGenerator, pathlib.Path, tempfile.TemporaryDirectory]
+ ~[unittest, pathlib.Path, src.core.{from_markdown, to_markdown}, src.generators.python.PythonGenerator, tempfile.TemporaryDirectory]
  @TestLSDF(unittest.TestCase)
   !test_translation(self)
   !test_translation_labels_class_with_bases_as_class(self)

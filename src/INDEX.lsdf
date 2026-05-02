@@ -1,4 +1,4 @@
-@INDEX:lsdf
+@INDEX:src
 @__init__.py
 @cli.py
  ~[click, os, json, core.{to_markdown, from_markdown}, generators.get_generator, importlib.metadata.{PackageNotFoundError, version}]
