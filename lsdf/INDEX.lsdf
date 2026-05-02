@@ -1,0 +1,48 @@
+@INDEX:lsdf
+@__init__.py
+@cli.py
+ ~[click, os, json, core.{to_markdown, from_markdown}, generators.get_generator, importlib.metadata.{PackageNotFoundError, version}]
+ $1. Setup local project paths
+ $2. Locate the SOURCE templates inside the installed package
+ $This finds the .agents folder relative to the cli.py file
+ $3. Create .lsdfignore and project.lsdf
+ $4. Copy the high-fidelity instruction files
+ $Fallback if templates aren't found in the package path
+ $Configuration
+ $Modify dirs in-place to skip ignored directories
+ $Calculations
+ $Estimated Cost Savings (Context Window Reloads)
+ $Assumption: $3.00 per 1M tokens (Claude 3.5 Sonnet Input Pricing)
+ $Output Report
+ !_package_version()
+ !_iter_walk_roots(path, recursive, depth)
+ !_default_ignored_entries()
+ !_build_index_content(root, files, verbose, include_comments)
+ !_detect_stack_markers(project_root)
+ !_read_text_if_exists(path)
+ !_detect_frameworks_and_deps(project_root)
+ !_load_lsdfignore(project_root)
+ !_is_ignored_path(base_path, current_root, entry, ignored)
+ !_detect_top_level_zones(project_root)
+ !_build_project_manifest(project_root)
+ !main(ctx, verbose)
+  $L-SDF: The Agent-First Documentation Tool.
+ !gen(ctx, path, recursive, depth, extract_comments)
+  $Scans source code to generate .lsdf indices.
+ !trans(file, output)
+  $Translates between L-SDF and Markdown.
+ !init()
+  $Bootstraps a repository with L-SDF config and agent rules.
+ !sync(ctx, path, check)
+  $Verifies that indices are up-to-date.
+ !stats(path)
+  $Calculates token savings (Source Code vs. L-SDF Indices).
+@core.py
+ ~[re]
+ !_entity_label(content)
+ !_to_markdown_indent(raw_indent)
+ !_to_lsdf_indent(raw_indent)
+ !to_markdown(lsdf_content)
+  $Expands L-SDF to Markdown.
+ !from_markdown(md_content)
+  $Compresses Markdown to L-SDF.

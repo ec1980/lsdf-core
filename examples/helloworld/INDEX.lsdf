@@ -1,0 +1,6 @@
+@INDEX:helloworld
+@hello.py
+ ~[sys]
+ @Greeter
+  !say_hello(self, name):str
+ !run_loop()

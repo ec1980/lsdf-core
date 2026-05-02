@@ -1,0 +1,23 @@
+@INDEX:generators
+@__init__.py
+ ~[python.PythonGenerator]
+ $Placeholder for future TreeSitter/JS support
+ !get_generator(file_path)
+@python.py
+ ~[ast, os, io, tokenize]
+ $1. Capture Imports
+ $Collapse multi-line docstrings to their first non-empty line
+ $2. Capture classes and functions in structural order
+ $Skip inline comments (comment is not the first token on the line)
+ $Skip linter/type-checker directives
+ !_collapse_imports(direct_imports, from_imports)
+ @PythonGenerator
+  !generate(self, file_path, include_comments)
+   !get_ret(func_node)
+   !get_annotation(annotation_node)
+   !get_args(func_node)
+    !format_arg(arg_node, prefix)
+   !get_docstring(node)
+   !get_routes(func_node)
+   !append_node(item, indent)
+  !_extract_single_line_comments(self, source)

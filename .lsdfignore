@@ -1,0 +1,9 @@
+.git
+__pycache__
+.pytest_cache
+venv
+node_modules
+.agents
+.vscode
+.github
+examples

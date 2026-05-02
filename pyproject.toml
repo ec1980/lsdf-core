@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "lsdf-core"
+version = "1.0.0"
+description = "Token-optimized documentation generator for AI Agents"
+dependencies = [
+    "click>=8.0",
+]
+
+[project.scripts]
+lsdf = "lsdf.cli:main"
+
+# --- BUILD CONFIGURATION ---
+
+[tool.hatch.build.targets.wheel]
+packages = ["lsdf"]
+# Includes the .agents folder in the distribution
+artifacts = [".agents"]

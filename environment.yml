@@ -1,0 +1,13 @@
+name: lsdf-dev
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+    - click>=8.0
+    - hatchling
+    - pytest
+    - tree-sitter>=0.20
+    - -e .  # This installs the current package in editable mode automatically
