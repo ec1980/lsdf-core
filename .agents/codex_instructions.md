@@ -1,31 +1,66 @@
-## GitHub Copilot Instructions: L-SDF Blueprinting
+# OpenAI Codex Instructions: L-SDF Protocol
 
 This project uses L-SDF for token-optimized context. Use these files as your "source of truth" for architecture before generating code.
 
-### 1. Blueprint Logic
+## L-SDF Required Workflow
 
-- **Root Entry:** Always inspect the root `project.lsdf` for global tech stack and constraints.
-- **Local Index:** Every directory contains an `INDEX.lsdf`. Use this to map the module's skeleton.
-- **Logic Chains:** Use the `!` sigil lines as the step-by-step blueprint for function implementations.
-- **Data Integrity:** Use `?` sigils to determine the correct types for variable assignments and interfaces.
+For repository-structure, code-discovery, and counting tasks, L-SDF is the
+primary source of truth and must be used before source-file scanning.
 
-### 2. Syntax Key
+Required order:
 
-- `^` : Project Root / Global Env & Stack
-- `@` : File / Module / Class / Object Boundary
-- `!` : Function / Method / Internal Logic Chain
-- `~` : Dependencies, Imports, and Requirements
-- `?` : Schema, Interface Shapes, and Type Definitions
-- `#` : API Routes / Endpoints / Webhooks
-- `$` : Annotation / Comment / Note / Rationale
+1. Read `project.lsdf` first.
+2. Read the relevant `INDEX.lsdf` for each directory before opening source files
+   in that directory.
+3. Derive module maps, function inventories, file-layout answers, and similar
+   structure summaries from `.lsdf` files first.
+4. Open source files only if:
+   - the `.lsdf` data is missing
+   - the `.lsdf` data is ambiguous
+   - or the user explicitly asks for source-level verification
 
-> **Reference:** If you encounter ambiguous syntax, read `SPEC.md` in the repo root.
-> **CLI Reference:** If you need exact `lsdf` command usage or options, read `docs/CLI.md`.
+For structure/counting questions:
 
-### 3. Maintenance Policy
+- do not scan source files first
+- state whether the answer is LSDF-derived or source-verified
+- list which `.lsdf` files were used
+- if source files were opened, explain why they were needed
+
+For function counts specifically:
+
+- use `!` entries in the relevant `INDEX.lsdf` files as the default counting
+  source
+- only fall back to source-defined `def` counts when LSDF coverage is missing,
+  stale, ambiguous, or when the user explicitly asks for source-based counting
+
+### 1. SIGILS
+
+- `^` = Project Root (Stack & Constraints)
+- `@` = File / Module / Entity / Class
+- `!` = Function / Method / Logic Flow
+- `~` = Dependency / Import
+- `?` = Schema / Type Definition
+- `#` = Route / API Endpoint
+- `$` = Annotation / Comment / Note
+
+### 2. SYNTAX
+
+- **Ownership:** Indentation implies hierarchy (e.g., `!` under `@` is a method).
+- **Indentation:** Each nesting level adds 1 leading space. A top-level symbol has 1 space; a child of that symbol has 2 spaces; a grandchild has 3 spaces; and so on. The absolute column of a sigil indicates its depth — do **not** assume all methods start at column 1.
+  - Example (using `·` to show spaces): `·@MyClass` (1 space = file-level class), `··!my_method` (2 spaces = method of that class), `···!inner` (3 spaces = closure inside that method).
+  - **Counting rule:** To count all `!` entries regardless of depth, match `!` anywhere on the line (e.g., grep for `!` rather than `^ !`). Filtering by a fixed indent prefix will silently miss nested items.
+- **Logic:** `step > effect` or `condition?Abort` denotes causal chains.
+- **Typing:** `name:type` (e.g., `id:uuid`) denotes data shapes.
+- **Continuations:** `\` denotes multi-line blocks (e.g., CLI arguments).
+
+### 3. TASK PROTOCOL
 
 - **Proposed Docs:** When generating new files, always propose a corresponding `.lsdf` entry.
-- **Indentation:** Children MUST be indented exactly 2 spaces under their parents.
-- **Fidelity:** Logic chains (e.g., `Step A > Step B`) must be implemented as sequential operations in the source code.
+- **Root-First:** Always read the root `project.lsdf` first to understand global tech stack and constraints.
+- **Index-Discovery:** Read the local `INDEX.lsdf` in a directory before opening source files.
+- **LSDF-First:** Derive structure summaries from `.lsdf` files before source scanning, and only open source files when the LSDF data is missing, ambiguous, or explicitly needs verification.
+- **Expansion:** When asked to implement or update code, use the L-SDF logic as the blueprint.
+- **Logic Fidelity:** Logic chains (e.g., `Step A > Step B`) must be implemented as sequential operations in the source code.
 - **Sync:** If you modify source files, regenerate the local `INDEX.lsdf` with `lsdf gen <dir>` instead of guessing the update by hand when possible. Update `project.lsdf` manually only when repo-wide metadata changes.
 - **Verification:** Run `lsdf sync . --check` after edits to confirm the generated indices still match the source tree.
+- **Fidelity:** You may use the `lsdf trans` tool if you need a human-readable Markdown view of an index.

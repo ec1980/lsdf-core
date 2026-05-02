@@ -144,7 +144,9 @@ This creates:
    cat .agents/claude_instructions.md >> CLAUDE.md
    # for Cursor Editor
    cat .agents/cursor_rules.md >> .cursorrules
-   # for GitHub Copilot/Codex
+   # for OpenAI Codex
+   cat .agents/codex_instructions.md >> AGENTS.md
+   # for GitHub Copilot
    mkdir -p .github
    cat .agents/codex_instructions.md >> .github/copilot-instructions.md
    # for Aider
@@ -195,7 +197,7 @@ L-SDF works with your existing AI tools by providing them with a "map" to read b
 
 * Claude Code: Append the instructions in `.agents/claude_instructions.md` to your `CLAUDE.md`.
 * Cursor: Append the rules in `.agents/cursor_rules.md` to your `.cursorrules`.
-* Codex/GitHub Copilot: Append the contents of `.agents/codex_instructions.md` to your `.github/copilot-instructions.md`.
+* GitHub Copilot: Append the contents of `.agents/codex_instructions.md` to your `.github/copilot-instructions.md`.
 
 ### The Agent Workflow
 
@@ -209,32 +211,29 @@ L-SDF works with your existing AI tools by providing them with a "map" to read b
 
 You can compare agent behavior with and without LSDF guidance.
 
-With LSDF:
+Example Claude Code query:
 
 ```text
-Find functions related to <feature> in the repo. List the files you searched and estimate the input token count.
+Count the number of functions in the src dir, with and without using LSDF files. Compare the answers, show the number of files opened and tokens used in both cases in a table.
 ```
 
-Without LSDF:
+Claude Code Response:
 
-```text
-Find functions related to <feature> in the repo, without consulting any LSDF files. List the files you searched and estimate the input token count.
-```
+Function count: both methods agree — 219 functions
 
-In the LSDF-guided case, the agent should usually be able to start from `project.lsdf` and the relevant `INDEX.lsdf` files, then open only a small number of source files if needed. The comparison prompt helps you measure whether LSDF reduces the amount of code the agent has to inspect. 
+| Metric | LSDF Method | Source Scan Method |
+| ------ | ----------- | ----------------- |
+| **Function count** | **219** | **219** |
+| Files opened | 3 | 12 |
+| Lines read | 568 | 6,453 |
+| Characters | 25,936 | 230,525 |
+| Estimated tokens (chars ÷ 4) | ~6,484 | ~57,631 |
+| **Token reduction** | — | **~9× more expensive** |
 
-The following is a response from a Claude Code session:
+The LSDF indices are complete and accurate — every ! sigil maps exactly to a def in the source. The 9× token savings comes from the LSDF stripping docstrings, comments, implementations, and type annotation bodies, leaving only signatures and structural metadata. The payoff grows further in large repos where only a subset of modules are relevant — LSDF lets you skip loading entire files entirely.
 
-```text
-Q: Is the LSDF file helpful?
-A: Yes, genuinely. The key advantages I noticed in practice today:
 
-- Faster lookup — finding to_markdown/from_markdown took one 48-line INDEX.lsdf read (~190 tokens) vs. opening src/core.py directly (~1,600 tokens)
-- Structural clarity — the sigils give me unambiguous signals: ! is a function, @ is a class/file, ~ is imports. No parsing required.
-- Navigation without reads — for the PythonGenerator question, the index told me exactly what methods exist and their nesting (closures inside generate) without me touching the source file at all.
 
-The main limit is it doesn't help when I need the body of a function — then I have to open the .py. But for orientation and discovery, it cuts token cost by roughly 10x based on the stats you just ran.
-```
 
 ----
 
