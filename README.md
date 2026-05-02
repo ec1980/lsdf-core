@@ -13,7 +13,7 @@ Standard documentation (Markdown) is "chatty" and visual. It wastes thousands of
 
 ## Token Economics & ROI
 
-In a typical coding session, source code and project context are re-sent to the API with every message. L-SDF indexes raw source code into a compact structural map that an agent can scan first, often using less than one-tenth the tokens.
+In a typical coding session, source code and project context are re-sent to the API with every message. L-SDF indexes raw source code into a compact structural map that an agent can scan first, often using one-tenth the tokens.
 
 Example from a typical Python repository with L-SDF indices:
 
@@ -131,7 +131,9 @@ This creates:
     ~[Pydantic,Pytest]
    ```
 
-* `.lsdf/lsdf_instructions.md`: The unified L-SDF protocol file. `lsdf init` automatically appends it to any agent config files it finds (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.github/copilot-instructions.md`, `CONVENTIONS.md`). Files that don't exist are skipped; files that already contain the instructions are left untouched. Re-running `lsdf init` is safe.
+* `.lsdf/lsdf_instructions.md`: The Rosetta Stone for AI agents — explains the L-SDF protocol and how to use it. 
+  
+  `lsdf init` automatically appends it to any agent config files it finds (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.github/copilot-instructions.md`, `CONVENTIONS.md`). Files that don't exist are skipped; files that already contain the instructions are left untouched. Re-running `lsdf init` is safe.
 
    If you add a new agent config file later, re-run `lsdf init` to append the instructions automatically. For agent tools not in the list above, append manually:
 
