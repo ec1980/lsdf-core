@@ -304,15 +304,14 @@ class TestCLI(unittest.TestCase):
     def test_init_preserves_existing_agent_files(self):
         with TemporaryDirectory() as tmpdir:
             with self.runner.isolated_filesystem(temp_dir=tmpdir):
-                agents_dir = Path(".agents")
-                agents_dir.mkdir()
-                existing = agents_dir / "claude_instructions.md"
+                lsdf_dir = Path(".lsdf")
+                lsdf_dir.mkdir()
+                existing = lsdf_dir / "lsdf_instructions.md"
                 existing.write_text("custom instructions\n", encoding="utf-8")
 
                 result = self.runner.invoke(self.main, ["init"])
                 self.assertEqual(result.exit_code, 0, result.output)
                 self.assertEqual(existing.read_text(encoding="utf-8"), "custom instructions\n")
-                self.assertTrue((agents_dir / "codex_instructions.md").exists())
                 self.assertIn("preserved", result.output)
 
     def test_init_creates_lsdfignore_with_default_entries(self):

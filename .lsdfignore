@@ -3,7 +3,7 @@ __pycache__
 .pytest_cache
 venv
 node_modules
-.agents
+.lsdf
 .vscode
 .github
 examples

@@ -30,7 +30,7 @@ def _iter_walk_roots(path, recursive, depth):
 
 
 def _default_ignored_entries():
-    return {".git", "__pycache__", ".pytest_cache", "venv", "node_modules", ".agents", ".vscode", ".github"}
+    return {".git", "__pycache__", ".pytest_cache", "venv", "node_modules", ".lsdf", ".vscode", ".github"}
 
 
 def _build_index_content(root, files, verbose=False, include_comments=False):
@@ -54,7 +54,8 @@ def _build_index_content(root, files, verbose=False, include_comments=False):
     if not dir_indices:
         return None
 
-    return f"@INDEX:{os.path.basename(root) or 'root'}\n" + "\n".join(dir_indices)
+    dir_name = os.path.basename(os.path.abspath(root))
+    return f"@INDEX:{dir_name}\n" + "\n".join(dir_indices)
 
 
 def _detect_stack_markers(project_root):
@@ -293,19 +294,19 @@ def trans(file, output):
         click.echo(result)
 
 @main.command()
-def init():
+@click.option('--ci', is_flag=True, help='Add GitHub Actions workflow for auto-updating indices on push.')
+def init(ci):
     """Bootstraps a repository with L-SDF config and agent rules."""
     import shutil
     from pathlib import Path
 
     # 1. Setup local project paths
-    target_agents_dir = Path(".agents")
-    target_agents_dir.mkdir(exist_ok=True)
-    
+    target_lsdf_dir = Path(".lsdf")
+    target_lsdf_dir.mkdir(exist_ok=True)
+
     # 2. Locate the SOURCE templates inside the installed package
-    # This finds the .agents folder relative to the cli.py file
-    source_dir = Path(__file__).parent.parent / ".agents"
-    
+    source_dir = Path(__file__).parent.parent / ".lsdf"
+
     # 3. Create .lsdfignore and project.lsdf
     if not Path(".lsdfignore").exists():
         with Path(".lsdfignore").open("w", encoding="utf-8") as f:
@@ -315,7 +316,7 @@ def init():
                 ".pytest_cache\n"
                 "venv\n"
                 "node_modules\n"
-                ".agents\n"
+                ".lsdf\n"
                 ".vscode\n"
                 ".github\n"
             )
@@ -324,34 +325,47 @@ def init():
     with Path("project.lsdf").open("w", encoding="utf-8") as f:
         f.write(project_manifest)
 
-    # 4. Copy the high-fidelity instruction files
+    # 4. Copy template files into .lsdf/
     if source_dir.exists():
         copied_files = 0
         skipped_files = 0
         for template in source_dir.glob("*"):
-            if template.is_file():
-                destination = target_agents_dir / template.name
+            if template.is_file() and template.name != "update-lsdf.yml":
+                destination = target_lsdf_dir / template.name
                 if destination.exists():
                     skipped_files += 1
                     continue
                 shutil.copy(template, destination)
                 copied_files += 1
         click.echo(
-            f"✅ L-SDF Initialized. Added {copied_files} agent rule file(s) to {target_agents_dir}/"
+            f"✅ L-SDF Initialized. Added {copied_files} file(s) to {target_lsdf_dir}/"
             f" and preserved {skipped_files} existing file(s)."
         )
     else:
-        # Fallback if templates aren't found in the package path
         click.echo("⚠️  Template source not found. Creating basic placeholder rules.")
-        fallback_file = target_agents_dir / "lsdf_instructions.md"
+        fallback_file = target_lsdf_dir / "lsdf_instructions.md"
         if fallback_file.exists():
             click.echo(f"ℹ️ Preserved existing fallback rule: {fallback_file}")
         else:
             with fallback_file.open("w") as f:
                 f.write("# L-SDF Protocol\nRead .lsdf files first.")
 
-    # 5. Append instructions to any agent config files that already exist
-    instructions_path = target_agents_dir / "lsdf_instructions.md"
+    # 5. Optionally copy GitHub Actions workflow
+    if ci:
+        workflow_src = source_dir / "update-lsdf.yml"
+        workflow_dst = Path(".github/workflows/update-lsdf.yml")
+        if not workflow_src.exists():
+            click.echo("⚠️  Workflow template not found in package.")
+        else:
+            workflow_dst.parent.mkdir(parents=True, exist_ok=True)
+            if workflow_dst.exists():
+                click.echo(f"ℹ️  Skipped {workflow_dst} (already exists)")
+            else:
+                shutil.copy(workflow_src, workflow_dst)
+                click.echo(f"✅ Added GitHub Actions workflow to {workflow_dst}")
+
+    # 6. Append instructions to any agent config files that already exist
+    instructions_path = target_lsdf_dir / "lsdf_instructions.md"
     sentinel = "# L-SDF Protocol"
     agent_configs = [
         Path("CLAUDE.md"),
@@ -427,7 +441,7 @@ def stats(path):
     # Configuration
     CHARS_PER_TOKEN = 4
     SOURCE_EXTENSIONS = {'.py', '.js', '.ts', '.tsx', '.jsx', '.go', '.rs', '.java', '.cpp', '.c', '.h'}
-    IGNORE_DIRS = {'.git', '__pycache__', 'venv', 'node_modules', '.agents', '.idea', '.vscode'}
+    IGNORE_DIRS = {'.git', '__pycache__', 'venv', 'node_modules', '.lsdf', '.idea', '.vscode'}
     
     source_chars = 0
     lsdf_chars = 0

@@ -23,7 +23,9 @@ Bootstraps the current directory with L-SDF configuration.
 - **Action:**
   - Creates `.lsdfignore` (defaulting to node_modules, __pycache__, .git).
   - Creates `project.lsdf` with the root `^` sigil.
-  - Creates `.agents/` folder with AI instruction files without overwriting files that already exist there.
+  - Creates `.lsdf/` folder with AI instruction files and the GitHub Actions workflow template, without overwriting files that already exist.
+  - Appends L-SDF instructions to any agent config files found (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, etc.).
+  - Copies `.github/workflows/update-lsdf.yml` if a `.github/` directory exists.
 
 ### 2. `lsdf gen` (Generate)
 

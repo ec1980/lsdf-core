@@ -1,5 +1,0 @@
-^lsdf-core:Python
- @docs:documentation
- @src:main-code
- @tests:test-suite
- ~[Pytest,Click]

@@ -24,14 +24,13 @@ Example from a typical Python repository with L-SDF indices:
 | 50-Turn Session Cost | $16.61 | $1.43 |
 | Savings | Base | 91.4% reduction / $15.18 saved |
 
-
 ----
 
 ## Quick Start
 
 ### 1. Install
 
-#### For Users (Global Access)
+#### A. For Users (Global Access)
 
 To use L-SDF across any project on your system, install it as a global utility. This ensures the lsdf command is available regardless of which specific project environment you have active.
 
@@ -42,7 +41,7 @@ sudo apt install pipx
 pipx ensurepath
 ```
 
-Then install L-SDF:
+Then install the L-SDF CLI tool:
 
 ```bash
 pipx install lsdf-core
@@ -54,7 +53,7 @@ Verify the installation:
 lsdf --help
 ```
 
-#### For Contributors (Local Repo / Editable Install)
+#### B. For Contributors (Local Repo / Editable Install)
 
 If you have this repository checked out locally and want changes in your working tree to be reflected immediately in the CLI, install it in editable mode with `pipx`:
 
@@ -73,17 +72,12 @@ conda activate lsdf-dev
 pytest tests/
 ```
 
-You can also run the unit tests with Python's built-in test runner:
-
-```bash
-python -m unittest tests.test_core -v
-```
-
-### 2. Examples
+##### Run the Helloworld Example
 
 To verify the tool is working, use the included `helloworld` example.
 
 ```bash
+cd ~/github/lsdf-core
 lsdf gen examples/helloworld
 cat examples/helloworld/INDEX.lsdf
 ```
@@ -112,7 +106,7 @@ It should translate to:
   - **Function:** run_loop()
 ```
 
-### 3. Initialize Any Repo
+### 2. Initialize Any Repo
 
 Now, you can navigate to any other project and bootstrap it with L-SDF support:
 
@@ -120,7 +114,7 @@ Now, you can navigate to any other project and bootstrap it with L-SDF support:
 # 1. Move to your target project
 cd ~/github/my-other-project
 
-# 2. Initialize (creates .agents/, .lsdfignore, and project.lsdf)
+# 2. Initialize (creates .lsdf/, .lsdfignore, and project.lsdf)
 lsdf init
 ```
 
@@ -137,19 +131,27 @@ This creates:
     ~[Pydantic,Pytest]
    ```
 
-* `.agents/lsdf_instructions.md`: The unified L-SDF protocol file. `lsdf init` automatically appends it to any agent config files it finds (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.github/copilot-instructions.md`, `CONVENTIONS.md`). Files that don't exist are skipped; files that already contain the instructions are left untouched. Re-running `lsdf init` is safe.
+* `.lsdf/lsdf_instructions.md`: The unified L-SDF protocol file. `lsdf init` automatically appends it to any agent config files it finds (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.github/copilot-instructions.md`, `CONVENTIONS.md`). Files that don't exist are skipped; files that already contain the instructions are left untouched. Re-running `lsdf init` is safe.
 
    If you add a new agent config file later, re-run `lsdf init` to append the instructions automatically. For agent tools not in the list above, append manually:
 
    ```bash
-   cat .agents/lsdf_instructions.md >> <your-agent-config-file>
+   cat .lsdf/lsdf_instructions.md >> <your-agent-config-file>
    ```
 
 * `.lsdfignore`: A file to prevent the indexer from wasting tokens on folders like node_modules or `__pycache__`.
 
 If your project's top-level structure or stack changes later, run `lsdf init` again to refresh `project.lsdf`.
 
-### 4. Generate Indices
+To also add a GitHub Actions workflow that auto-regenerates indices on every push, pass `--ci`:
+
+```bash
+lsdf init --ci
+```
+
+This adds `.github/workflows/update-lsdf.yml`. On every push it installs `lsdf-core` from PyPI, regenerates all `INDEX.lsdf` files, and commits any changes back to the branch. Requires GitHub Actions to have write permission on the repository. Re-running `lsdf init --ci` is safe — it will not overwrite an existing workflow.
+
+### 3. Generate Indices
 
 Scan your source code to generate or update `INDEX.lsdf` maps in your source directories.
 
@@ -157,13 +159,45 @@ Scan your source code to generate or update `INDEX.lsdf` maps in your source dir
 lsdf gen . --recursive
 ```
 
-> Run ```lsdf stats``` after your first generation to see exactly how much you're saving on your next AI coding session.
+> Run `lsdf stats` after your first generation to see exactly how much you're saving on your next AI coding session.
+>
+> Run `lsdf sync` to verify that indices match the current source code.
 
-### 5. Auto-Update on GitHub Push
+----
 
-If you want a repository to keep its `INDEX.lsdf` files updated automatically, copy `.github-update-lsdf.yml` into `.github/workflows/update-lsdf.yml`.
+## AI Agent Integration
 
-This workflow installs `lsdf-core`, regenerates `INDEX.lsdf` files on every push, and commits any resulting changes back to the branch. It does not update `project.lsdf`; if your project's structure changes, run `lsdf init` again. If your repository uses branch protection, make sure GitHub Actions is allowed to push to that branch.
+L-SDF works with your existing AI tools by providing them with a "map" to read before they ever touch your source code.
+
+### The Agent Workflow
+
+   1. AI reads `project.lsdf` at the root and `INDEX.lsdf` in each directory.
+   2. AI identifies project structure and logic flow in the LSDF file.
+   3. AI opens ONLY the specific file if the content of the file is needed.
+   4. AI updates `INDEX.lsdf` when it modifies the source code.
+
+### Evaluation Example
+
+You can compare agent behavior with and without LSDF guidance.
+
+#### Claude Code Query
+
+> Count the number of functions in the src dir, with and without using LSDF files. Compare the answers, show the number of files opened and tokens used in both cases in a table.
+
+#### Claude Code Response
+
+> Function count: both methods agree — 219 functions
+>
+> | Metric | LSDF Method | Source Scan Method |
+> | ------ | ----------- | ----------------- |
+> | **Function count** | **219** | **219** |
+> | Files opened | 3 | 12 |
+> | Lines read | 568 | 6,453 |
+> | Characters | 25,936 | 230,525 |
+> | Estimated tokens (chars ÷ 4) | ~6,484 | ~57,631 |
+> | **Token reduction** | — | **~9× more expensive** |
+>
+> The LSDF indices are complete and accurate — every ! sigil maps exactly to a def in the source. The 9× token savings comes from the LSDF stripping docstrings, comments, implementations, and type annotation bodies, leaving only signatures and structural metadata. The payoff grows further in large repos where only a subset of modules are relevant — LSDF lets you skip loading entire files entirely.
 
 ----
 
@@ -184,45 +218,6 @@ In L-SDF, sigils act as single-character semantic tags. Instead of wasting token
 | `#` | **Route** | API endpoint, webhook, or URL path. | `@app.get("/users")` |
 
 > See `SPEC.md` for the full specification.
-
-----
-
-## AI Agent Integration
-
-L-SDF works with your existing AI tools by providing them with a "map" to read before they ever touch your source code. `lsdf init` automatically appends `.agents/lsdf_instructions.md` to any agent config files it finds in the project root. No manual copy step required.
-
-### The Agent Workflow
-
-   1. AI reads `INDEX.lsdf` in each directory.
-   2. AI identifies project structure and logic flow in the LSDF file.
-   3. AI opens ONLY the specific file if the content of the file is needed.
-   4. AI updates `INDEX.lsdf` when it modifies the source code.
-   5. Savings: ~90% fewer tokens read than "whole-repo" scanning.
-
-### Example Evaluation Queries
-
-You can compare agent behavior with and without LSDF guidance.
-
-Example Claude Code query:
-
-```text
-Count the number of functions in the src dir, with and without using LSDF files. Compare the answers, show the number of files opened and tokens used in both cases in a table.
-```
-
-Claude Code Response:
-
-Function count: both methods agree — 219 functions
-
-| Metric | LSDF Method | Source Scan Method |
-| ------ | ----------- | ----------------- |
-| **Function count** | **219** | **219** |
-| Files opened | 3 | 12 |
-| Lines read | 568 | 6,453 |
-| Characters | 25,936 | 230,525 |
-| Estimated tokens (chars ÷ 4) | ~6,484 | ~57,631 |
-| **Token reduction** | — | **~9× more expensive** |
-
-The LSDF indices are complete and accurate — every ! sigil maps exactly to a def in the source. The 9× token savings comes from the LSDF stripping docstrings, comments, implementations, and type annotation bodies, leaving only signatures and structural metadata. The payoff grows further in large repos where only a subset of modules are relevant — LSDF lets you skip loading entire files entirely.
 
 ----
 
