@@ -90,6 +90,30 @@ def _emit_import_lines(direct_imports, from_imports):
     return lines
 
 
+SCHEMA_BASES = frozenset({
+    'BaseModel', 'TypedDict', 'NamedTuple', 'Schema', 'Model',
+    'SQLModel', 'DeclarativeBase', 'Base',
+})
+
+SCHEMA_LINE_BUDGET = 80
+
+
+def _is_schema_class(item):
+    """Return True if the class should be emitted as a ? schema rather than an @ entity."""
+    for dec in item.decorator_list:
+        if isinstance(dec, ast.Name) and dec.id == 'dataclass':
+            return True
+        if isinstance(dec, ast.Attribute) and dec.attr == 'dataclass':
+            return True
+    for base in item.bases:
+        name = base.id if isinstance(base, ast.Name) else (
+            base.attr if isinstance(base, ast.Attribute) else None
+        )
+        if name in SCHEMA_BASES:
+            return True
+    return False
+
+
 def _collect_callees(func_node, known_functions, known_classes, in_class=None):
     """Walk a function body and return project-level callees in order of first appearance."""
     callees = []
@@ -243,6 +267,9 @@ class PythonGenerator:
 
         def append_nav(item, indent=' '):
             if isinstance(item, ast.ClassDef):
+                if _is_schema_class(item):
+                    nav_lines.append(f'{indent}?{item.name}')
+                    return
                 nav_lines.append(f'{indent}@{item.name}{_bases_suffix(item)}')
                 for sub in item.body:
                     if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -257,6 +284,23 @@ class PythonGenerator:
 
         def append_detail(item, indent=' ', in_class=None):
             if isinstance(item, ast.ClassDef):
+                if _is_schema_class(item):
+                    fields = []
+                    for sub in item.body:
+                        if isinstance(sub, ast.AnnAssign) and isinstance(sub.target, ast.Name):
+                            ann = _alias_annotation(sub.annotation) if sub.annotation else None
+                            fields.append(f'{sub.target.id}:{ann}' if ann else sub.target.id)
+                    if not fields:
+                        detail_lines.append(f'{indent}?{item.name}')
+                    else:
+                        one_line = f'{indent}?{item.name}{{{",".join(fields)}}}'
+                        if len(one_line) <= SCHEMA_LINE_BUDGET:
+                            detail_lines.append(one_line)
+                        else:
+                            detail_lines.append(f'{indent}?{item.name}')
+                            for field in fields:
+                                detail_lines.append(f'{indent} ?{field}')
+                    return
                 detail_lines.append(f'{indent}@{item.name}{_bases_suffix(item)}')
                 for sub in item.body:
                     if isinstance(sub, ast.AnnAssign) and isinstance(sub.target, ast.Name):

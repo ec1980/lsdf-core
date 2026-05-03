@@ -103,8 +103,9 @@ class TestLSDF(unittest.TestCase):
                 self.assertIn(" ~package.module:Thing,helper", output)
                 self.assertNotIn("~[", output)
 
-            # Nav: class and function names only, no signatures
-            self.assertIn(" @FeatureSpec(BaseModel)", nav)
+            # Nav: schema classes use ? sigil; regular classes use @
+            self.assertIn(" ?FeatureSpec", nav)
+            self.assertNotIn("@FeatureSpec", nav)
             self.assertIn(" @Greeter", nav)
             self.assertIn("  @Formatter", nav)
             self.assertIn("   !format_name", nav)
@@ -113,9 +114,9 @@ class TestLSDF(unittest.TestCase):
             self.assertNotIn("(self,", nav)
             self.assertNotIn(":str", nav)
 
-            # Detail: compact signatures with type aliases, schema fields
-            self.assertIn("  ?feature_id:s", detail)
-            self.assertIn("  ?enabled:b", detail)
+            # Detail: schema class emitted as inline ?Name{fields}
+            self.assertIn(" ?FeatureSpec{feature_id:s,enabled:b}", detail)
+            self.assertNotIn("@FeatureSpec", detail)
             self.assertIn("   !format_name(name:s):s", detail)
             self.assertIn("  !say_hello(name:s):s", detail)
             self.assertIn(" !run_loop(user)", detail)
@@ -220,6 +221,64 @@ class TestLSDF(unittest.TestCase):
             _, detail = PythonGenerator().generate(str(file_path))
             self.assertIn("!greet(names) > say_hello", detail)
             self.assertIn("!run > Greeter.greet,parse", detail)
+
+    def test_python_generator_inline_schema(self):
+        with TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "sample.py"
+            file_path.write_text(
+                "from dataclasses import dataclass\n"
+                "from pydantic import BaseModel\n"
+                "\n"
+                "class User(BaseModel):\n"
+                "    id: int\n"
+                "    email: str\n"
+                "    active: bool\n"
+                "\n"
+                "@dataclass\n"
+                "class Point:\n"
+                "    x: float\n"
+                "    y: float\n"
+                "\n"
+                "class Service:\n"
+                "    def run(self):\n"
+                "        pass\n",
+                encoding="utf-8",
+            )
+
+            nav, detail = PythonGenerator().generate(str(file_path))
+
+            # Schema classes use ? in nav (name only)
+            self.assertIn(" ?User", nav)
+            self.assertIn(" ?Point", nav)
+            self.assertNotIn("@User", nav)
+            self.assertNotIn("@Point", nav)
+            # Non-schema class still uses @
+            self.assertIn(" @Service", nav)
+
+            # Schema classes use inline ? form in detail
+            self.assertIn(" ?User{id:i,email:s,active:b}", detail)
+            self.assertIn(" ?Point{x:f,y:f}", detail)
+            self.assertNotIn("@User", detail)
+            self.assertNotIn("@Point", detail)
+            # Non-schema class still uses @
+            self.assertIn(" @Service", detail)
+
+    def test_python_generator_schema_multiline_fallback(self):
+        with TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "sample.py"
+            # Schema with many fields that won't fit on one line
+            fields = "\n".join(f"    field_{i}: str" for i in range(15))
+            file_path.write_text(
+                f"from pydantic import BaseModel\n\nclass Big(BaseModel):\n{fields}\n",
+                encoding="utf-8",
+            )
+
+            _, detail = PythonGenerator().generate(str(file_path))
+
+            # One-line would exceed budget — should fall back to multiline
+            self.assertNotIn("?Big{", detail)
+            self.assertIn("?Big", detail)
+            self.assertIn(" ?field_0:s", detail)
 
     def test_python_generator_skips_low_value_symbols(self):
         with TemporaryDirectory() as tmpdir:
