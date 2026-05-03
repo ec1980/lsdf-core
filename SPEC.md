@@ -52,7 +52,7 @@ Indentation encodes hierarchy. A sigil indented under another sigil is a member 
 
 ### 4.2 Indentation
 
-Each nesting level adds exactly 1 leading space. A top-level entry has 1 space; its child has 2; a grandchild has 3; and so on. The absolute column of a sigil encodes its depth. Parsers MUST NOT assume a fixed column for any sigil type.
+Each nesting level adds exactly 1 leading space. A top-level entry has 0 leading spaces; its child has 1; a grandchild has 2; and so on. The absolute column of a sigil encodes its depth. Parsers MUST NOT assume a fixed column for any sigil type.
 
 ### 4.3 Grouping
 
