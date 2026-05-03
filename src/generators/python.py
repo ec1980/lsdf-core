@@ -186,7 +186,8 @@ class PythonGenerator:
         for item in tree.body:
             if isinstance(item, ast.Import):
                 for n in item.names:
-                    direct_imports.append(n.name)
+                    if n.name != '__future__':
+                        direct_imports.append(n.name)
             elif isinstance(item, ast.ImportFrom):
                 if item.module and item.module != '__future__':
                     for alias in item.names:

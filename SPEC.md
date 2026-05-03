@@ -234,6 +234,8 @@ Generators SHOULD omit symbols that do not help agent navigation. The following 
 - Standard logging helpers
 - Test fixtures that are not reused broadly
 - Tiny local validation utilities
+- `__init__.py` files (package markers with no standalone logic)
+- `from __future__ import` and `import __future__` (implementation directives, not real dependencies)
 
 The following SHOULD always be included:
 

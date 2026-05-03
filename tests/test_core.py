@@ -292,7 +292,7 @@ class TestLSDF(unittest.TestCase):
         with TemporaryDirectory() as tmpdir:
             file_path = Path(tmpdir) / "sample.py"
             file_path.write_text(
-                "from __future__ import annotations\nimport os\ndef run(): pass\n",
+                "from __future__ import annotations\nimport __future__\nimport os\ndef run(): pass\n",
                 encoding="utf-8",
             )
             nav, detail = PythonGenerator().generate(str(file_path))
