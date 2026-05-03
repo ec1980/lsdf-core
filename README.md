@@ -259,11 +259,11 @@ In L-SDF, sigils act as single-character semantic tags. Instead of wasting token
 
 ## CLI Commands
 
-* lsdf init: Bootstrap a repo for L-SDF.
-* lsdf gen `<path>`: Generate or update .lsdf files from source code.
-* lsdf trans `<file>`: Translate `.lsdf` to Markdown or `.md` to L-SDF.
-* lsdf sync: Verify that indices match the current source code (CI/CD friendly).
-* lsdf stats: Calculate your token ROI and savings.
+* `lsdf init`: Bootstrap a repo for L-SDF.
+* `lsdf gen`: Generate or update .lsdf files from source code.
+* `lsdf trans`: Translate `.lsdf` to Markdown or `.md` to L-SDF.
+* `lsdf sync`: Verify that indices match the current source code.
+* `lsdf stats`: Calculate your token ROI and savings.
 
 > See `docs/CLI.md` for more details.
 
