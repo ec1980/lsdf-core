@@ -279,7 +279,6 @@ In L-SDF, sigils act as single-character semantic tags. Instead of wasting token
 * `lsdf init`: Bootstrap a repo for L-SDF.
 * `lsdf gen`: Generate or update `INDEX.lsdf` and `INDEX.detail.lsdf` from source code.
 * `lsdf sync`: Verify that indices match the current source code.
-* `lsdf lint`: Report where generated L-SDF exceeds token budget or can be compacted.
 * `lsdf trans`: Translate `.lsdf` to Markdown or `.md` to L-SDF.
 * `lsdf stats`: Calculate your token ROI and savings.
 

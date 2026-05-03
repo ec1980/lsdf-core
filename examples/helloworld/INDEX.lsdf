@@ -1,8 +1,7 @@
-@INDEX:helloworld
 @hello.py
- ~[sys]
+ ~sys
  @Greeter
-  !say_hello(self, name):str
-  !greet(self, names):list[str]
- !parse(argv):list[str]
- !run()
+  !say_hello
+  !greet
+ !parse
+ !run

@@ -279,17 +279,6 @@ Generators SHOULD minimise optional flags that change detail output. Fewer gener
 
 `lsdf sync` MUST detect and report stale index files. When `.lsdf/meta.json` is present, `lsdf sync` SHOULD use stored source hashes to detect stale files efficiently. When metadata is absent, `lsdf sync` MUST fall back to full recomputation.
 
-### 5.4 Token-budget linting
-
-`lsdf lint` SHOULD report where generated L-SDF is becoming too large. Useful checks include:
-
-- Detail index exceeds token budget
-- Schema eligible for one-line compaction
-- `$` annotation too long
-- Private helper included without cross-file importance
-- Call edge has too many callees
-- Repeated type name that should use an alias
-
 ## 6. Agent Instructions
 
 The recommended agent instruction to include in project config files is:

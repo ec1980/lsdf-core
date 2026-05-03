@@ -652,5 +652,33 @@ class TestCLI(unittest.TestCase):
                 self.assertIn(" @app:application", project_lsdf)
                 self.assertIn(" ~[FastAPI]", project_lsdf)
 
+    def test_gen_writes_meta_at_project_root_not_subdir(self):
+        """meta.json must land at the project root even when gen is invoked on a subdirectory."""
+        import json
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            # Simulate a project root by placing project.lsdf there
+            (root / "project.lsdf").write_text("^myproject:Python\n", encoding="utf-8")
+            src = root / "src"
+            src.mkdir()
+            (src / "app.py").write_text("def run():\n    return 1\n", encoding="utf-8")
+
+            # Invoke gen on the subdirectory, not the root
+            result = self.runner.invoke(self.main, ["gen", str(src)])
+            self.assertEqual(result.exit_code, 0, result.output)
+
+            # meta.json must be at the project root, not in src/
+            meta_at_root = root / ".lsdf" / "meta.json"
+            meta_at_src = src / ".lsdf" / "meta.json"
+            self.assertTrue(meta_at_root.exists(), "meta.json should be at project root")
+            self.assertFalse(meta_at_src.exists(), "meta.json must NOT be in the scan subdirectory")
+
+            meta = json.loads(meta_at_root.read_text(encoding="utf-8"))
+            # Keys should be relative to project root, e.g. "src/INDEX.lsdf"
+            indices = meta["indices"]
+            expected_key = str(Path("src") / "INDEX.lsdf")
+            self.assertIn(expected_key, indices)
+
 if __name__ == '__main__':
     unittest.main()
