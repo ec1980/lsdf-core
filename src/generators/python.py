@@ -166,6 +166,8 @@ class PythonGenerator:
             return None, None
 
         basename = os.path.basename(file_path)
+        if basename == '__init__.py':
+            return None, None
 
         # Registry for call edge detection
         known_functions = set()
@@ -186,7 +188,7 @@ class PythonGenerator:
                 for n in item.names:
                     direct_imports.append(n.name)
             elif isinstance(item, ast.ImportFrom):
-                if item.module:
+                if item.module and item.module != '__future__':
                     for alias in item.names:
                         from_imports.setdefault(item.module, []).append(
                             '*' if alias.name == '*' else alias.name

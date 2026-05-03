@@ -280,6 +280,26 @@ class TestLSDF(unittest.TestCase):
             self.assertIn("?Big", detail)
             self.assertIn(" ?field_0:s", detail)
 
+    def test_python_generator_skips_init_file(self):
+        with TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "__init__.py"
+            file_path.write_text("from .core import run\n", encoding="utf-8")
+            nav, detail = PythonGenerator().generate(str(file_path))
+            self.assertIsNone(nav)
+            self.assertIsNone(detail)
+
+    def test_python_generator_skips_future_imports(self):
+        with TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "sample.py"
+            file_path.write_text(
+                "from __future__ import annotations\nimport os\ndef run(): pass\n",
+                encoding="utf-8",
+            )
+            nav, detail = PythonGenerator().generate(str(file_path))
+            self.assertNotIn("__future__", nav)
+            self.assertNotIn("__future__", detail)
+            self.assertIn("~os", nav)
+
     def test_python_generator_skips_low_value_symbols(self):
         with TemporaryDirectory() as tmpdir:
             file_path = Path(tmpdir) / "sample.py"
