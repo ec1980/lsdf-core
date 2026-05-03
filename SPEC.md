@@ -249,14 +249,6 @@ The following SHOULD always be included:
 - Core pipeline stages
 - Functions called by many callers
 
-Test directories MAY use a compact summary form:
-
-```text
-@tests
- !42 tests
- !covers:score,features,pipeline
-```
-
 ### 4.8 Annotations
 
 `$` annotations SHOULD appear only in `INDEX.detail.lsdf`. They MUST be kept to one short line. Multi-line annotation blocks MUST NOT appear in generated output.
