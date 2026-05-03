@@ -69,7 +69,7 @@ class TestLSDF(unittest.TestCase):
         md = to_markdown("@INDEX:deal_scorer")
         self.assertIn("# DIR: deal_scorer", md)
 
-    def test_python_generator_preserves_module_and_nested_hierarchy(self):
+    def test_python_generator_produces_two_tier_output(self):
         with TemporaryDirectory() as tmpdir:
             file_path = Path(tmpdir) / "sample.py"
             file_path.write_text(
@@ -87,42 +87,56 @@ class TestLSDF(unittest.TestCase):
                 "            return name.title()\n"
                 "\n"
                 "    def say_hello(self, name: str) -> str:\n"
-                "        def build_message(target):\n"
-                "            return f'Hello {target}'\n"
-                "        return build_message(name)\n"
+                "        return f'Hello {name}'\n"
                 "\n"
                 "def run_loop(user=None):\n"
                 "    return user\n",
                 encoding="utf-8",
             )
 
-            output = PythonGenerator().generate(str(file_path))
-            self.assertIn("@sample.py", output)
-            self.assertIn(" ~[os, os.path, package.module.{Thing, helper}]", output)
-            self.assertIn(" @FeatureSpec(BaseModel)", output)
-            self.assertIn("  ?feature_id:str", output)
-            self.assertIn("  ?enabled:bool", output)
-            self.assertIn(" @Greeter", output)
-            self.assertIn("  @Formatter", output)
-            self.assertIn("   !format_name(self, name):str", output)
-            self.assertIn("  !say_hello(self, name):str", output)
-            self.assertIn("   !build_message(target)", output)
-            self.assertIn(" !run_loop(user)", output)
+            nav, detail = PythonGenerator().generate(str(file_path))
+
+            # Both tiers share the file header and imports
+            for output in (nav, detail):
+                self.assertIn("@sample.py", output)
+                self.assertIn(" ~os,os.path", output)
+                self.assertIn(" ~package.module:Thing,helper", output)
+                self.assertNotIn("~[", output)
+
+            # Nav: class and function names only, no signatures
+            self.assertIn(" @FeatureSpec(BaseModel)", nav)
+            self.assertIn(" @Greeter", nav)
+            self.assertIn("  @Formatter", nav)
+            self.assertIn("   !format_name", nav)
+            self.assertIn("  !say_hello", nav)
+            self.assertIn(" !run_loop", nav)
+            self.assertNotIn("(self,", nav)
+            self.assertNotIn(":str", nav)
+
+            # Detail: compact signatures with type aliases, schema fields
+            self.assertIn("  ?feature_id:s", detail)
+            self.assertIn("  ?enabled:b", detail)
+            self.assertIn("   !format_name(name:s):s", detail)
+            self.assertIn("  !say_hello(name:s):s", detail)
+            self.assertIn(" !run_loop(user)", detail)
+            self.assertNotIn("self", detail)
 
     def test_python_generator_omits_none_return_annotation(self):
         with TemporaryDirectory() as tmpdir:
             file_path = Path(tmpdir) / "sample.py"
             file_path.write_text(
-                "def test_cli_scores_all_active_watches_from_watches_dir(tmp_path) -> None:\n"
+                "def test_func(tmp_path) -> None:\n"
                 "    return None\n",
                 encoding="utf-8",
             )
 
-            output = PythonGenerator().generate(str(file_path))
-            self.assertIn("!test_cli_scores_all_active_watches_from_watches_dir(tmp_path)", output)
-            self.assertNotIn(":None", output)
+            nav, detail = PythonGenerator().generate(str(file_path))
+            self.assertIn("!test_func", nav)
+            self.assertIn("!test_func(tmp_path)", detail)
+            self.assertNotIn(":None", nav)
+            self.assertNotIn(":None", detail)
 
-    def test_python_generator_keeps_single_from_import_without_braces(self):
+    def test_python_generator_compact_import_syntax(self):
         with TemporaryDirectory() as tmpdir:
             file_path = Path(tmpdir) / "sample.py"
             file_path.write_text(
@@ -130,9 +144,10 @@ class TestLSDF(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            output = PythonGenerator().generate(str(file_path))
-            self.assertIn(" ~[deal_scorer.cli.main]", output)
-            self.assertNotIn("{main}", output)
+            nav, _ = PythonGenerator().generate(str(file_path))
+            self.assertIn(" ~deal_scorer.cli:main", nav)
+            self.assertNotIn("~[", nav)
+            self.assertNotIn("{main}", nav)
 
     def test_python_generator_extracts_routes_from_decorators(self):
         with TemporaryDirectory() as tmpdir:
@@ -151,29 +166,82 @@ class TestLSDF(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            output = PythonGenerator().generate(str(file_path))
-            self.assertIn(" !health_check()", output)
-            self.assertIn("  #GET /health", output)
-            self.assertIn(" !create_item(item)", output)
-            self.assertIn("  #POST /items", output)
+            nav, detail = PythonGenerator().generate(str(file_path))
+            # Nav: names only, no routes
+            self.assertIn(" !health_check", nav)
+            self.assertIn(" !create_item", nav)
+            # Detail: signatures and routes
+            self.assertIn(" !health_check", detail)
+            self.assertIn("  #GET /health", detail)
+            self.assertIn(" !create_item(item)", detail)
+            self.assertIn("  #POST /items", detail)
 
-    def test_python_generator_extracts_single_line_comments_only_when_enabled(self):
+    def test_python_generator_type_aliases(self):
         with TemporaryDirectory() as tmpdir:
             file_path = Path(tmpdir) / "sample.py"
             file_path.write_text(
-                "# TODO handle legacy fallback\n"
-                "# plain comment\n"
-                "def run():\n"
-                "    return 1\n",
+                "from typing import Optional\n"
+                "\n"
+                "def process(name: str, count: int, active: bool) -> float:\n"
+                "    return 1.0\n"
+                "\n"
+                "def load(items: list[str]) -> dict[str, int]:\n"
+                "    return {}\n"
+                "\n"
+                "def maybe(val: Optional[str]) -> str | None:\n"
+                "    return val\n",
                 encoding="utf-8",
             )
 
-            disabled_output = PythonGenerator().generate(str(file_path))
-            enabled_output = PythonGenerator().generate(str(file_path), include_comments=True)
+            _, detail = PythonGenerator().generate(str(file_path))
+            self.assertIn("!process(name:s,count:i,active:b):f", detail)
+            self.assertIn("!load(items:[s]):{s:i}", detail)
+            self.assertIn("!maybe(val:s?)", detail)
+            self.assertIn(":s?", detail)
 
-            self.assertNotIn("$TODO handle legacy fallback", disabled_output)
-            self.assertIn(" $TODO handle legacy fallback", enabled_output)
-            self.assertIn(" $plain comment", enabled_output)
+    def test_python_generator_call_edges(self):
+        with TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "sample.py"
+            file_path.write_text(
+                "class Greeter:\n"
+                "    def say_hello(self, name):\n"
+                "        return f'Hello {name}'\n"
+                "    def greet(self, names):\n"
+                "        return [self.say_hello(n) for n in names]\n"
+                "\n"
+                "def parse(argv):\n"
+                "    return argv\n"
+                "\n"
+                "def run():\n"
+                "    Greeter().greet(parse([]))\n",
+                encoding="utf-8",
+            )
+
+            _, detail = PythonGenerator().generate(str(file_path))
+            self.assertIn("!greet(names) > say_hello", detail)
+            self.assertIn("!run > Greeter.greet,parse", detail)
+
+    def test_python_generator_omits_dunders(self):
+        with TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "sample.py"
+            file_path.write_text(
+                "class Foo:\n"
+                "    def __init__(self):\n"
+                "        self.x = 1\n"
+                "    def __repr__(self):\n"
+                "        return 'Foo'\n"
+                "    def real_method(self):\n"
+                "        return self.x\n",
+                encoding="utf-8",
+            )
+
+            nav, detail = PythonGenerator().generate(str(file_path))
+            self.assertNotIn("__init__", nav)
+            self.assertNotIn("__repr__", nav)
+            self.assertNotIn("__init__", detail)
+            self.assertNotIn("__repr__", detail)
+            self.assertIn("!real_method", nav)
+            self.assertIn("!real_method", detail)
 
 
 class TestCLI(unittest.TestCase):
@@ -183,6 +251,29 @@ class TestCLI(unittest.TestCase):
 
         self.runner = CliRunner()
         self.main = main
+
+    def test_gen_produces_both_index_tiers(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            pkg = root / "pkg"
+            pkg.mkdir()
+            (pkg / "app.py").write_text(
+                "def run():\n    return 1\n",
+                encoding="utf-8",
+            )
+
+            result = self.runner.invoke(self.main, ["gen", str(root), "--recursive"])
+            self.assertEqual(result.exit_code, 0, result.output)
+            self.assertTrue((pkg / "INDEX.lsdf").exists())
+            self.assertTrue((pkg / "INDEX.detail.lsdf").exists())
+
+            nav = (pkg / "INDEX.lsdf").read_text(encoding="utf-8")
+            detail = (pkg / "INDEX.detail.lsdf").read_text(encoding="utf-8")
+            self.assertIn("@app.py", nav)
+            self.assertIn(" !run", nav)
+            self.assertNotIn("@INDEX:", nav)
+            self.assertIn("@app.py", detail)
+            self.assertIn(" !run", detail)
 
     def test_gen_supports_depth_and_overwrite_default(self):
         with TemporaryDirectory() as tmpdir:
@@ -199,12 +290,11 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(result.exit_code, 0, result.output)
             self.assertTrue((src / "INDEX.lsdf").exists())
             self.assertFalse((nested / "INDEX.lsdf").exists())
-            generated = (src / "INDEX.lsdf").read_text(encoding="utf-8")
-            self.assertIn("@app.py", generated)
-            self.assertIn(" !top()", generated)
+            nav = (src / "INDEX.lsdf").read_text(encoding="utf-8")
+            self.assertIn("@app.py", nav)
+            self.assertIn(" !top", nav)
 
             (src / "INDEX.lsdf").write_text("manual edit\n", encoding="utf-8")
-
             rewritten = self.runner.invoke(self.main, ["gen", str(root), "--recursive"])
             self.assertEqual(rewritten.exit_code, 0, rewritten.output)
             self.assertNotEqual((src / "INDEX.lsdf").read_text(encoding="utf-8"), "manual edit\n")
@@ -221,8 +311,8 @@ class TestCLI(unittest.TestCase):
             result = self.runner.invoke(self.main, ["gen", str(root), "--recursive"])
             self.assertEqual(result.exit_code, 0, result.output)
 
-            generated = (pkg / "INDEX.lsdf").read_text(encoding="utf-8")
-            self.assertLess(generated.find("@alpha.py"), generated.find("@zeta.py"))
+            nav = (pkg / "INDEX.lsdf").read_text(encoding="utf-8")
+            self.assertLess(nav.find("@alpha.py"), nav.find("@zeta.py"))
 
     def test_gen_respects_lsdfignore(self):
         with TemporaryDirectory() as tmpdir:
@@ -242,32 +332,6 @@ class TestCLI(unittest.TestCase):
             self.assertTrue((kept / "INDEX.lsdf").exists())
             self.assertFalse((ignored / "INDEX.lsdf").exists())
 
-    def test_gen_extracts_comments_only_with_flag(self):
-        with TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir)
-            pkg = root / "pkg"
-            pkg.mkdir()
-
-            (pkg / "app.py").write_text(
-                "# TODO keep this note\n"
-                "def run():\n"
-                "    return 1\n",
-                encoding="utf-8",
-            )
-
-            default_result = self.runner.invoke(self.main, ["gen", str(root), "--recursive"])
-            self.assertEqual(default_result.exit_code, 0, default_result.output)
-            default_index = (pkg / "INDEX.lsdf").read_text(encoding="utf-8")
-            self.assertNotIn("$TODO keep this note", default_index)
-
-            flagged_result = self.runner.invoke(
-                self.main,
-                ["gen", str(root), "--recursive", "--extract-comments"],
-            )
-            self.assertEqual(flagged_result.exit_code, 0, flagged_result.output)
-            flagged_index = (pkg / "INDEX.lsdf").read_text(encoding="utf-8")
-            self.assertIn(" $TODO keep this note", flagged_index)
-
     def test_sync_check_detects_drift(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -275,14 +339,17 @@ class TestCLI(unittest.TestCase):
             pkg.mkdir()
 
             py_file = pkg / "app.py"
-            index_file = pkg / "INDEX.lsdf"
             py_file.write_text("def run():\n    return 1\n", encoding="utf-8")
-            index_file.write_text("@INDEX:pkg\n@app.py\n !run()\n", encoding="utf-8")
+
+            # Generate initial indices
+            gen_result = self.runner.invoke(self.main, ["gen", str(root), "--recursive"])
+            self.assertEqual(gen_result.exit_code, 0, gen_result.output)
 
             up_to_date = self.runner.invoke(self.main, ["sync", str(root), "--check"])
             self.assertEqual(up_to_date.exit_code, 0, up_to_date.output)
             self.assertIn("All indices are up to date", up_to_date.output)
 
+            # Drift: change the source
             py_file.write_text("def run(name):\n    return name\n", encoding="utf-8")
             drift = self.runner.invoke(self.main, ["sync", str(root), "--check"])
             self.assertEqual(drift.exit_code, 1, drift.output)

@@ -95,7 +95,7 @@ Running `lsdf gen examples/helloworld` produces two index files.
   !say_hello(name:s):s
   !greet(names:[s]):[s] > say_hello
  !parse(argv:[s]):[s]
- !run > parse,Greeter.greet
+ !run > Greeter.greet,parse
 ```
 
 Both files strip every docstring, comment, and implementation body. `self` is omitted, `()` is omitted for zero-argument functions, and standard type aliases replace verbose names (`s`=str, `[s]`=list[str]).

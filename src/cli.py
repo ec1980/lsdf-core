@@ -33,8 +33,8 @@ def _default_ignored_entries():
     return {".git", "__pycache__", ".pytest_cache", "venv", "node_modules", ".lsdf", ".vscode", ".github"}
 
 
-def _build_index_content(root, files, verbose=False, include_comments=False):
-    dir_indices = []
+def _build_index_content(root, files, verbose=False):
+    nav_parts, detail_parts = [], []
 
     for file in files:
         file_path = os.path.join(root, file)
@@ -43,19 +43,19 @@ def _build_index_content(root, files, verbose=False, include_comments=False):
             if verbose:
                 click.echo(f"  generating from {file_path}")
             try:
-                content = generator.generate(file_path, include_comments=include_comments)
-                if content:
-                    dir_indices.append(content)
+                nav, detail = generator.generate(file_path)
+                if nav:
+                    nav_parts.append(nav)
+                if detail:
+                    detail_parts.append(detail)
             except Exception as e:
                 click.echo(f"⚠️ Error scanning {file}: {e}")
         elif verbose:
             click.echo(f"  skipping unsupported file {file_path}")
 
-    if not dir_indices:
-        return None
-
-    dir_name = os.path.basename(os.path.abspath(root))
-    return f"@INDEX:{dir_name}\n" + "\n".join(dir_indices)
+    nav = "\n".join(nav_parts) if nav_parts else None
+    detail = "\n".join(detail_parts) if detail_parts else None
+    return nav, detail
 
 
 def _detect_stack_markers(project_root):
@@ -244,9 +244,8 @@ def main(ctx, verbose):
 @click.argument('path', default='.')
 @click.option('--recursive', '-r', is_flag=True, help='Scan subdirectories')
 @click.option('--depth', type=click.IntRange(min=0), help='Limit recursion depth.')
-@click.option('--extract-comments', '-e', is_flag=True, help='Extract single-line comments as $ annotations.')
 @click.pass_context
-def gen(ctx, path, recursive, depth, extract_comments):
+def gen(ctx, path, recursive, depth):
     """Scans source code to generate .lsdf indices."""
     verbose = ctx.obj.get("verbose", False)
     base_path = os.path.abspath(path)
@@ -258,17 +257,17 @@ def gen(ctx, path, recursive, depth, extract_comments):
         if verbose:
             click.echo(f"Scanning {root} (depth={current_depth})")
 
-        index_content = _build_index_content(
-            root,
-            files,
-            verbose=verbose,
-            include_comments=extract_comments,
-        )
-        if index_content:
+        nav, detail = _build_index_content(root, files, verbose=verbose)
+        if nav:
             index_path = os.path.join(root, "INDEX.lsdf")
             with open(index_path, "w") as f:
-                f.write(index_content)
+                f.write(nav)
             click.echo(f"✅ Created: {index_path}")
+        if detail:
+            detail_path = os.path.join(root, "INDEX.detail.lsdf")
+            with open(detail_path, "w") as f:
+                f.write(detail)
+            click.echo(f"✅ Created: {detail_path}")
 
 @main.command()
 @click.argument('file')
@@ -405,22 +404,31 @@ def sync(ctx, path, check):
         if not py_files:
             continue
 
-        index_path = os.path.join(root, "INDEX.lsdf")
-        if not os.path.exists(index_path):
+        nav_path = os.path.join(root, "INDEX.lsdf")
+        if not os.path.exists(nav_path):
             stale_dirs.append((root, "missing INDEX.lsdf"))
             continue
 
-        with open(index_path, 'r') as f:
-            current_content = f.read()
+        with open(nav_path, 'r') as f:
+            current_nav = f.read()
 
-        has_comments = any(line.lstrip().startswith('$') for line in current_content.splitlines())
-        expected_content = _build_index_content(root, files, verbose=False, include_comments=has_comments)
-        if expected_content is None:
+        expected_nav, expected_detail = _build_index_content(root, files, verbose=False)
+        if expected_nav is None:
             continue
 
-        if current_content.rstrip() != expected_content.rstrip():
+        if current_nav.rstrip() != expected_nav.rstrip():
             stale_dirs.append((root, "INDEX.lsdf content differs from generated output"))
-        elif verbose:
+            continue
+
+        detail_path = os.path.join(root, "INDEX.detail.lsdf")
+        if os.path.exists(detail_path) and expected_detail:
+            with open(detail_path, 'r') as f:
+                current_detail = f.read()
+            if current_detail.rstrip() != expected_detail.rstrip():
+                stale_dirs.append((root, "INDEX.detail.lsdf content differs from generated output"))
+                continue
+
+        if verbose:
             click.echo(f"✓ Up to date: {root}")
 
     if stale_dirs:
