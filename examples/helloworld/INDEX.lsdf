@@ -1,0 +1,8 @@
+@INDEX:helloworld
+@hello.py
+ ~[sys]
+ @Greeter
+  !say_hello(self, name):str
+  !greet(self, names):list[str]
+ !parse(argv):list[str]
+ !run()

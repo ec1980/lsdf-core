@@ -26,6 +26,81 @@ Example from a typical Python repository with L-SDF indices:
 
 ----
 
+## The Hello World Example
+
+Here is what L-SDF does to a typical Python file. Given `examples/helloworld/hello.py`:
+
+```python
+import sys
+
+# Default greeting target when no argument is provided.
+DEFAULT_NAME = "World"
+
+class Greeter:
+    """Sends personalised greetings to one or more named targets."""
+
+    def say_hello(self, name: str) -> str:
+        """Greet a single person and return the formatted message.
+
+        Raises:
+            ValueError: If name is an empty string.
+        """
+        if not name:
+            raise ValueError("Name must not be empty")
+        message = f"Hello, {name}!"
+        print(message)
+        return message
+
+    def greet(self, names: list[str]) -> list[str]:
+        """Greet every non-empty name in the list in order.
+
+        Empty strings are silently skipped.
+        Returns a list of the formatted greeting messages.
+        """
+        return [self.say_hello(n) for n in names if n.strip()]
+
+
+def parse(argv: list[str]) -> list[str]:
+    """Return the list of names from argv, defaulting to [DEFAULT_NAME].
+
+    Strips whitespace from each argument and drops any blank strings.
+    """
+    names = [a.strip() for a in argv if a.strip()]
+    return names if names else [DEFAULT_NAME]
+
+
+def run() -> None:
+    """Entry point: parse CLI args and greet each name in order."""
+    Greeter().greet(parse(sys.argv[1:]))
+
+
+if __name__ == "__main__":
+    run()
+```
+
+Running `lsdf gen examples/helloworld` produces `INDEX.lsdf`:
+
+```text
+@INDEX:helloworld
+@hello.py
+ ~[sys]
+ @Greeter
+  !say_hello(self, name):str
+  !greet(self, names):list[str]
+ !parse(argv):list[str]
+ !run()
+```
+
+The index captures the full structure — imports, classes, and all signatures — while stripping every docstring, comment, and implementation body:
+
+| | Source (`hello.py`) | L-SDF Index (`INDEX.lsdf`) |
+| --- | --- | --- |
+| Lines | 46 | 7 |
+| Tokens | ~320 | ~34 |
+| Savings | — | **~10× fewer tokens** |
+
+----
+
 ## Quick Start
 
 ### 1. Install
@@ -72,40 +147,6 @@ conda activate lsdf-dev
 pytest tests/
 ```
 
-##### Run the Helloworld Example
-
-To verify the tool is working, use the included `helloworld` example.
-
-```bash
-cd ~/github/lsdf-core
-lsdf gen examples/helloworld
-cat examples/helloworld/INDEX.lsdf
-```
-
-`INDEX.lsdf` should be:
-
-```text
-@INDEX:helloworld
-@hello.py
- ~[sys]
- @Greeter
-  !say_hello(self, name):str
- !run_loop()
-```
-
-Run `lsdf trans examples/helloworld/INDEX.lsdf` to view it as Markdown.
-
-It should translate to:
-
-```md
-# DIR: helloworld
-## File: hello.py
-  - **Dependencies:** [sys]
-  - **Class:** Greeter
-    - **Function:** say_hello(self, name):str
-  - **Function:** run_loop()
-```
-
 ### 2. Initialize Any Repo
 
 Now, you can navigate to any other project and bootstrap it with L-SDF support:
@@ -131,7 +172,7 @@ This creates:
     ~[Pydantic,Pytest]
    ```
 
-* `.lsdf/lsdf_instructions.md`: The Rosetta Stone for AI agents — explains the L-SDF protocol and how to use it. 
+* `.lsdf/lsdf_instructions.md`: The Rosetta Stone for AI agents — explains the L-SDF protocol and how to use it.
   
   `lsdf init` automatically appends it to any agent config files it finds (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.github/copilot-instructions.md`, `CONVENTIONS.md`). Files that don't exist are skipped; files that already contain the instructions are left untouched. Re-running `lsdf init` is safe.
 
