@@ -456,6 +456,74 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(drift.exit_code, 1, drift.output)
             self.assertIn("L-SDF drift detected", drift.output)
 
+    def test_gen_writes_meta_json(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            pkg = root / "pkg"
+            pkg.mkdir()
+            (pkg / "app.py").write_text("def run():\n    return 1\n", encoding="utf-8")
+
+            result = self.runner.invoke(self.main, ["gen", str(root), "--recursive"])
+            self.assertEqual(result.exit_code, 0, result.output)
+
+            meta_path = root / ".lsdf" / "meta.json"
+            self.assertTrue(meta_path.exists())
+
+            import json
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            self.assertEqual(meta["generator"], "lsdf-core")
+            self.assertIn("version", meta)
+            self.assertIn("generated_at", meta)
+
+            indices = meta["indices"]
+            nav_key = str(Path("pkg") / "INDEX.lsdf")
+            detail_key = str(Path("pkg") / "INDEX.detail.lsdf")
+            self.assertIn(nav_key, indices)
+            self.assertIn(detail_key, indices)
+
+            nav_entry = indices[nav_key]
+            self.assertEqual(nav_entry["profile"], "nav")
+            self.assertIn("source_files", nav_entry)
+            self.assertIn("source_hash", nav_entry)
+            self.assertIn("index_hash", nav_entry)
+            self.assertIn(str(Path("pkg") / "app.py"), nav_entry["source_files"])
+
+    def test_sync_uses_meta_fast_path(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            pkg = root / "pkg"
+            pkg.mkdir()
+            py_file = pkg / "app.py"
+            py_file.write_text("def run():\n    return 1\n", encoding="utf-8")
+
+            self.runner.invoke(self.main, ["gen", str(root), "--recursive"])
+
+            # Up to date — fast path should pass
+            result = self.runner.invoke(self.main, ["sync", str(root), "--check"])
+            self.assertEqual(result.exit_code, 0, result.output)
+            self.assertIn("All indices are up to date", result.output)
+
+            # Modify source — fast path detects staleness via source hash
+            py_file.write_text("def run(name):\n    return name\n", encoding="utf-8")
+            result = self.runner.invoke(self.main, ["sync", str(root), "--check"])
+            self.assertEqual(result.exit_code, 1, result.output)
+            self.assertIn("L-SDF drift detected", result.output)
+
+    def test_sync_detects_manual_index_edit(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            pkg = root / "pkg"
+            pkg.mkdir()
+            (pkg / "app.py").write_text("def run():\n    return 1\n", encoding="utf-8")
+
+            self.runner.invoke(self.main, ["gen", str(root), "--recursive"])
+
+            # Manually edit the index without changing source
+            (pkg / "INDEX.lsdf").write_text("manually edited\n", encoding="utf-8")
+            result = self.runner.invoke(self.main, ["sync", str(root), "--check"])
+            self.assertEqual(result.exit_code, 1, result.output)
+            self.assertIn("L-SDF drift detected", result.output)
+
     def test_trans_rejects_missing_and_unsupported_files(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

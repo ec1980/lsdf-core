@@ -1,4 +1,6 @@
 import click
+import datetime
+import hashlib
 import os
 import json
 from importlib.metadata import PackageNotFoundError, version
@@ -10,6 +12,44 @@ def _package_version():
         return version("lsdf-core")
     except PackageNotFoundError:
         return "0.0.0"
+
+
+def _hash_str(s):
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()[:16]
+
+
+def _combined_source_hash(file_paths):
+    """Stable hash over a set of source files (order-independent)."""
+    h = hashlib.sha256()
+    for path in sorted(file_paths):
+        try:
+            with open(path, "rb") as f:
+                h.update(f.read())
+        except OSError:
+            pass
+    return h.hexdigest()[:16]
+
+
+def _read_meta(base_path):
+    """Read .lsdf/meta.json. Returns None if missing or corrupt."""
+    meta_path = os.path.join(base_path, ".lsdf", "meta.json")
+    if not os.path.exists(meta_path):
+        return None
+    try:
+        with open(meta_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def _write_meta(base_path, meta):
+    """Write .lsdf/meta.json, creating .lsdf/ if needed."""
+    lsdf_dir = os.path.join(base_path, ".lsdf")
+    os.makedirs(lsdf_dir, exist_ok=True)
+    meta_path = os.path.join(lsdf_dir, "meta.json")
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(meta, f, indent=2)
+        f.write("\n")
 
 
 def _iter_walk_roots(path, recursive, depth):
@@ -251,6 +291,10 @@ def gen(ctx, path, recursive, depth):
     base_path = os.path.abspath(path)
     ignored = _load_lsdfignore(base_path)
 
+    meta = _read_meta(base_path) or {"generator": "lsdf-core", "indices": {}}
+    meta["version"] = _package_version()
+    meta["generated_at"] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+
     for root, dirs, files, current_depth in _iter_walk_roots(path, recursive, depth):
         dirs[:] = [d for d in dirs if not _is_ignored_path(base_path, root, d, ignored)]
         files = [f for f in files if not _is_ignored_path(base_path, root, f, ignored)]
@@ -258,16 +302,39 @@ def gen(ctx, path, recursive, depth):
             click.echo(f"Scanning {root} (depth={current_depth})")
 
         nav, detail = _build_index_content(root, files, verbose=verbose)
+
+        source_files = sorted(
+            os.path.relpath(os.path.join(root, f), base_path)
+            for f in files if get_generator(f) is not None
+        )
+        source_hash = _combined_source_hash(
+            [os.path.join(base_path, f) for f in source_files]
+        )
+
         if nav:
             index_path = os.path.join(root, "INDEX.lsdf")
             with open(index_path, "w") as f:
                 f.write(nav)
             click.echo(f"✅ Created: {index_path}")
+            meta["indices"][os.path.relpath(index_path, base_path)] = {
+                "profile": "nav",
+                "source_files": source_files,
+                "source_hash": source_hash,
+                "index_hash": _hash_str(nav),
+            }
         if detail:
             detail_path = os.path.join(root, "INDEX.detail.lsdf")
             with open(detail_path, "w") as f:
                 f.write(detail)
             click.echo(f"✅ Created: {detail_path}")
+            meta["indices"][os.path.relpath(detail_path, base_path)] = {
+                "profile": "detail",
+                "source_files": source_files,
+                "source_hash": source_hash,
+                "index_hash": _hash_str(detail),
+            }
+
+    _write_meta(base_path, meta)
 
 @main.command()
 @click.argument('file')
@@ -397,6 +464,8 @@ def sync(ctx, path, check):
     ignored = _load_lsdfignore(base_path)
     stale_dirs = []
 
+    meta = _read_meta(base_path)
+
     for root, dirs, files, _ in _iter_walk_roots(path, recursive=True, depth=None):
         dirs[:] = [d for d in dirs if not _is_ignored_path(base_path, root, d, ignored)]
         files = [f for f in files if not _is_ignored_path(base_path, root, f, ignored)]
@@ -405,31 +474,57 @@ def sync(ctx, path, check):
             continue
 
         nav_path = os.path.join(root, "INDEX.lsdf")
-        if not os.path.exists(nav_path):
-            stale_dirs.append((root, "missing INDEX.lsdf"))
-            continue
-
-        with open(nav_path, 'r') as f:
-            current_nav = f.read()
-
-        expected_nav, expected_detail = _build_index_content(root, files, verbose=False)
-        if expected_nav is None:
-            continue
-
-        if current_nav.rstrip() != expected_nav.rstrip():
-            stale_dirs.append((root, "INDEX.lsdf content differs from generated output"))
-            continue
-
         detail_path = os.path.join(root, "INDEX.detail.lsdf")
-        if os.path.exists(detail_path) and expected_detail:
-            with open(detail_path, 'r') as f:
-                current_detail = f.read()
-            if current_detail.rstrip() != expected_detail.rstrip():
-                stale_dirs.append((root, "INDEX.detail.lsdf content differs from generated output"))
-                continue
+        nav_rel = os.path.relpath(nav_path, base_path)
+        detail_rel = os.path.relpath(detail_path, base_path)
+        nav_meta = meta.get("indices", {}).get(nav_rel) if meta else None
+        detail_meta = meta.get("indices", {}).get(detail_rel) if meta else None
 
-        if verbose:
-            click.echo(f"✓ Up to date: {root}")
+        if nav_meta:
+            # Fast path: hash-based staleness check
+            if not os.path.exists(nav_path):
+                stale_dirs.append((root, "missing INDEX.lsdf"))
+                continue
+            abs_sources = [os.path.join(base_path, f) for f in nav_meta["source_files"]]
+            if _combined_source_hash(abs_sources) != nav_meta["source_hash"]:
+                stale_dirs.append((root, "INDEX.lsdf is stale (source changed)"))
+                continue
+            with open(nav_path, "r", encoding="utf-8") as f:
+                if _hash_str(f.read().rstrip()) != nav_meta["index_hash"]:
+                    stale_dirs.append((root, "INDEX.lsdf has been modified"))
+                    continue
+            if detail_meta and os.path.exists(detail_path):
+                abs_sources = [os.path.join(base_path, f) for f in detail_meta["source_files"]]
+                if _combined_source_hash(abs_sources) != detail_meta["source_hash"]:
+                    stale_dirs.append((root, "INDEX.detail.lsdf is stale (source changed)"))
+                    continue
+                with open(detail_path, "r", encoding="utf-8") as f:
+                    if _hash_str(f.read().rstrip()) != detail_meta["index_hash"]:
+                        stale_dirs.append((root, "INDEX.detail.lsdf has been modified"))
+                        continue
+            if verbose:
+                click.echo(f"✓ Up to date: {root}")
+        else:
+            # Slow path: full content regeneration
+            if not os.path.exists(nav_path):
+                stale_dirs.append((root, "missing INDEX.lsdf"))
+                continue
+            with open(nav_path, "r") as f:
+                current_nav = f.read()
+            expected_nav, expected_detail = _build_index_content(root, files, verbose=False)
+            if expected_nav is None:
+                continue
+            if current_nav.rstrip() != expected_nav.rstrip():
+                stale_dirs.append((root, "INDEX.lsdf content differs from generated output"))
+                continue
+            if os.path.exists(detail_path) and expected_detail:
+                with open(detail_path, "r") as f:
+                    current_detail = f.read()
+                if current_detail.rstrip() != expected_detail.rstrip():
+                    stale_dirs.append((root, "INDEX.detail.lsdf content differs from generated output"))
+                    continue
+            if verbose:
+                click.echo(f"✓ Up to date: {root}")
 
     if stale_dirs:
         click.echo("❌ L-SDF drift detected:")
