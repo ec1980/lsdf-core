@@ -459,7 +459,7 @@ def init(ci):
         copied_files = 0
         skipped_files = 0
         for template in source_dir.glob("*"):
-            if template.is_file() and template.name != "update-lsdf.yml":
+            if template.is_file():
                 destination = target_lsdf_dir / template.name
                 if destination.exists() and (not is_upgrade or is_newer):
                     skipped_files += 1
@@ -482,9 +482,9 @@ def init(ci):
             with fallback_file.open("w") as f:
                 f.write("# L-SDF Protocol\nRead .lsdf files first.")
 
-    # 5. Optionally copy GitHub Actions workflow
+    # 6. Optionally deploy GitHub Actions workflow from .lsdf/ to .github/workflows/
     if ci:
-        workflow_src = source_dir / "update-lsdf.yml"
+        workflow_src = target_lsdf_dir / "update-lsdf.yml"
         workflow_dst = Path(".github/workflows/update-lsdf.yml")
         if not workflow_src.exists():
             click.echo("⚠️  Workflow template not found in package.")
@@ -496,7 +496,7 @@ def init(ci):
                 shutil.copy(workflow_src, workflow_dst)
                 click.echo(f"✅ Added GitHub Actions workflow to {workflow_dst}")
 
-    # 6. Append instructions to any agent config files that already exist
+    # 7. Append instructions to any agent config files that already exist
     instructions_path = target_lsdf_dir / "lsdf_instructions.md"
     sentinel = "# L-SDF Protocol"
     agent_configs = [
