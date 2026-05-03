@@ -68,6 +68,32 @@ Agent-facing files (`project.lsdf`, `INDEX.lsdf`, `INDEX.detail.lsdf`) MUST NOT 
 
 `lsdf sync` SHOULD use `.lsdf/meta.json` when available to detect stale indexes efficiently, and MUST fall back to full recomputation when metadata is missing.
 
+Example `meta.json`:
+
+```json
+{
+  "generator": "lsdf-core",
+  "version": "1.1.0",
+  "generated_at": "2026-05-03T12:00:00Z",
+  "indices": {
+    "src/INDEX.lsdf": {
+      "profile": "nav",
+      "source_files": ["src/app.py", "src/models.py"],
+      "source_hash": "a3f1c8e2b7d04591",
+      "index_hash": "9c2e5f1a3b8d7042"
+    },
+    "src/INDEX.detail.lsdf": {
+      "profile": "detail",
+      "source_files": ["src/app.py", "src/models.py"],
+      "source_hash": "a3f1c8e2b7d04591",
+      "index_hash": "4f7a2c9e1b3d8056"
+    }
+  }
+}
+```
+
+All paths in `indices` are relative to the project root. `source_hash` is a SHA-256 prefix over all source files for that directory. `index_hash` is a SHA-256 prefix of the index file content. A mismatch between stored and current `source_hash` signals stale source; a mismatch in `index_hash` signals manual edits to the index.
+
 ## 3. Sigil Vocabulary
 
 Each non-blank line in an `.lsdf` file MUST begin with zero or more space characters followed by exactly one sigil character.
