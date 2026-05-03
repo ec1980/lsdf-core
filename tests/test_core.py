@@ -628,6 +628,33 @@ class TestCLI(unittest.TestCase):
                 project_lsdf = Path("project.lsdf").read_text(encoding="utf-8")
                 self.assertIn("$lsdf:", project_lsdf)
 
+    def test_init_updates_agent_config_instructions_on_upgrade(self):
+        with TemporaryDirectory() as tmpdir:
+            with self.runner.isolated_filesystem(temp_dir=tmpdir):
+                # Simulate old project: content before, L-SDF section, content after
+                Path("project.lsdf").write_text("^myproject:Python\n", encoding="utf-8")
+                Path("CLAUDE.md").write_text(
+                    "# My Project\n\n## L-SDF Protocol\nold instructions\n\n# Other Section\nkept\n",
+                    encoding="utf-8",
+                )
+
+                result = self.runner.invoke(self.main, ["init"])
+                self.assertEqual(result.exit_code, 0, result.output)
+                self.assertIn("Updated", result.output)
+
+                claude_md = Path("CLAUDE.md").read_text(encoding="utf-8")
+                # Old instructions replaced
+                self.assertNotIn("old instructions", claude_md)
+                # L-SDF Protocol heading present
+                self.assertIn("L-SDF Protocol", claude_md)
+                # Content before the sentinel preserved
+                self.assertIn("# My Project", claude_md)
+                # Content after the sentinel preserved
+                self.assertIn("# Other Section", claude_md)
+                self.assertIn("kept", claude_md)
+                # Sentinel appears exactly once
+                self.assertEqual(claude_md.count("L-SDF Protocol"), 1)
+
     def test_init_warns_when_project_version_is_newer_than_cli(self):
         with TemporaryDirectory() as tmpdir:
             with self.runner.isolated_filesystem(temp_dir=tmpdir):

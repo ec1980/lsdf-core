@@ -513,7 +513,36 @@ def init(ci):
                 continue
             existing = config.read_text(encoding="utf-8")
             if sentinel in existing:
-                click.echo(f"ℹ️  Skipped {config} (L-SDF already present)")
+                if is_upgrade:
+                    lines = existing.splitlines(keepends=True)
+                    # Find line containing the L-SDF Protocol heading (any # level)
+                    idx = next(
+                        (i for i, l in enumerate(lines)
+                         if l.startswith("#") and "L-SDF Protocol" in l),
+                        None,
+                    )
+                    if idx is not None:
+                        heading_level = len(lines[idx]) - len(lines[idx].lstrip("#"))
+                        # Find end of section: next heading at same or higher level
+                        end_idx = len(lines)
+                        for j in range(idx + 1, len(lines)):
+                            stripped = lines[j].rstrip()
+                            if stripped.startswith("#"):
+                                level = len(stripped) - len(stripped.lstrip("#"))
+                                if level <= heading_level:
+                                    end_idx = j
+                                    break
+                        before = "".join(lines[:idx]).rstrip()
+                        after = "".join(lines[end_idx:])
+                        new_content = before + f"\n\n{instructions_text.rstrip()}"
+                        if after.strip():
+                            new_content += f"\n\n{after.lstrip()}"
+                        else:
+                            new_content += "\n"
+                        config.write_text(new_content, encoding="utf-8")
+                        click.echo(f"✅ Updated L-SDF instructions in {config}")
+                else:
+                    click.echo(f"ℹ️  Skipped {config} (L-SDF already present)")
             else:
                 with config.open("a", encoding="utf-8") as f:
                     f.write(f"\n{instructions_text}")
