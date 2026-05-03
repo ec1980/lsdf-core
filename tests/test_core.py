@@ -628,6 +628,26 @@ class TestCLI(unittest.TestCase):
                 project_lsdf = Path("project.lsdf").read_text(encoding="utf-8")
                 self.assertIn("$lsdf:", project_lsdf)
 
+    def test_init_warns_when_project_version_is_newer_than_cli(self):
+        with TemporaryDirectory() as tmpdir:
+            with self.runner.isolated_filesystem(temp_dir=tmpdir):
+                # Simulate a project.lsdf from a future version
+                Path("project.lsdf").write_text("^myproject:Python\n$lsdf:99.0.0\n", encoding="utf-8")
+                Path(".lsdf").mkdir()
+                old_content = "future instructions\n"
+                (Path(".lsdf") / "lsdf_instructions.md").write_text(old_content, encoding="utf-8")
+
+                result = self.runner.invoke(self.main, ["init"])
+                self.assertEqual(result.exit_code, 0, result.output)
+
+                self.assertIn("newer version", result.output)
+                self.assertIn("99.0.0", result.output)
+                # Templates must NOT be overwritten
+                self.assertEqual(
+                    (Path(".lsdf") / "lsdf_instructions.md").read_text(encoding="utf-8"),
+                    old_content,
+                )
+
     def test_init_skips_templates_when_version_matches(self):
         with TemporaryDirectory() as tmpdir:
             with self.runner.isolated_filesystem(temp_dir=tmpdir):
