@@ -62,7 +62,6 @@ Generators SHOULD write machine metadata under `.lsdf/` for tooling use:
 ```text
 .lsdf/
   meta.json   — generator metadata, source file lists, source and index hashes
-  sync.json   — sync state
 ```
 
 Agent-facing files (`project.lsdf`, `INDEX.lsdf`, `INDEX.detail.lsdf`) MUST NOT contain generator metadata, timestamps, hashes, token statistics, or CI bookkeeping.
@@ -249,11 +248,7 @@ The following SHOULD always be included:
 - Core pipeline stages
 - Functions called by many callers
 
-### 4.8 Annotations
-
-`$` annotations SHOULD appear only in `INDEX.detail.lsdf`. They MUST be kept to one short line. Multi-line annotation blocks MUST NOT appear in generated output.
-
-### 4.9 Continuations
+### 4.8 Continuations
 
 The `\` character at the start of a line denotes a continuation of the preceding block (e.g., for multi-line CLI argument lists or long descriptions).
 
@@ -265,7 +260,7 @@ Generated L-SDF MUST always be compact. There is no generated verbose mode. More
 
 ### 5.2 Default output
 
-Running `lsdf gen` on a directory MUST produce both `INDEX.lsdf` and `INDEX.detail.lsdf`. A separate `--extract-comments` flag MUST NOT exist; selected high-value comments SHOULD be included in `INDEX.detail.lsdf` as compact `$` annotations.
+Running `lsdf gen` on a directory MUST produce both `INDEX.lsdf` and `INDEX.detail.lsdf`. Selected high-value comments SHOULD be included in `INDEX.detail.lsdf` as compact `$` annotations.
 
 Generators SHOULD minimise optional flags that change detail output. Fewer generation modes means simpler agent instructions and more predictable diffs.
 
