@@ -637,65 +637,69 @@ def sync(ctx, path, check):
 def stats(path):
     """Calculates token savings (Source Code vs. L-SDF Indices)."""
     import os
-    
-    # Configuration
-    CHARS_PER_TOKEN = 4
+
     SOURCE_EXTENSIONS = {'.py', '.js', '.ts', '.tsx', '.jsx', '.go', '.rs', '.java', '.cpp', '.c', '.h'}
     IGNORE_DIRS = {'.git', '__pycache__', 'venv', 'node_modules', '.lsdf', '.idea', '.vscode'}
     
     source_chars = 0
-    lsdf_chars = 0
+    nav_chars = 0
+    detail_chars = 0
     source_files_count = 0
-    lsdf_files_count = 0
+    nav_files_count = 0
+    detail_files_count = 0
 
     click.echo(f"🔍 Analyzing project density in '{path}'...")
 
     for root, dirs, files in os.walk(path):
-        # Modify dirs in-place to skip ignored directories
         dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
-        
+
         for file in files:
             file_path = os.path.join(root, file)
             _, ext = os.path.splitext(file)
-            
+
             try:
                 file_size = os.path.getsize(file_path)
-                
-                if file == "INDEX.lsdf" or file == "project.lsdf":
-                    lsdf_chars += file_size
-                    lsdf_files_count += 1
+
+                if file in ("INDEX.lsdf", "project.lsdf"):
+                    nav_chars += file_size
+                    nav_files_count += 1
+                elif file == "INDEX.detail.lsdf":
+                    detail_chars += file_size
+                    detail_files_count += 1
                 elif ext in SOURCE_EXTENSIONS:
                     source_chars += file_size
                     source_files_count += 1
             except OSError:
-                pass # Skip files we can't read/access
+                pass
 
     # Calculations
+    CHARS_PER_TOKEN = 4
     source_tokens = int(source_chars / CHARS_PER_TOKEN)
-    lsdf_tokens = int(lsdf_chars / CHARS_PER_TOKEN)
-    
+    nav_tokens = int(nav_chars / CHARS_PER_TOKEN)
+    detail_tokens = int(detail_chars / CHARS_PER_TOKEN)
+
     if source_tokens == 0:
         click.echo("⚠️  No source code found to compare.")
         return
 
-    savings_tokens = source_tokens - lsdf_tokens
-    savings_percent = (savings_tokens / source_tokens) * 100
-    
-    # Estimated Cost Savings (Context Window Reloads)
-    # Assumption: $3.00 per 1M tokens (Claude 3.5 Sonnet Input Pricing)
     cost_per_million = 3.00
-    cost_1_load = (source_tokens / 1_000_000) * cost_per_million
-    cost_lsdf_load = (lsdf_tokens / 1_000_000) * cost_per_million
-    savings_50_turns = (cost_1_load - cost_lsdf_load) * 50
 
-    # Output Report
+    def _savings(reduced_tokens):
+        pct = (1 - reduced_tokens / source_tokens) * 100
+        saved = ((source_tokens - reduced_tokens) / 1_000_000) * cost_per_million * 50
+        return pct, saved
+
+    nav_pct, nav_saved = _savings(nav_tokens)
+    detail_pct, detail_saved = _savings(detail_tokens)
+
     click.echo("\n📊 L-SDF ROI Report")
     click.echo("========================================")
-    click.echo(f"Source Files:      {source_files_count:>6} files  |  {source_tokens:>9,} tokens")
-    click.echo(f"L-SDF Indices:     {lsdf_files_count:>6} files  |  {lsdf_tokens:>9,} tokens")
+    click.echo(f"Source Files:        {source_files_count:>4} files  |  {source_tokens:>9,} tokens")
+    click.echo(f"INDEX.lsdf (nav):    {nav_files_count:>4} files  |  {nav_tokens:>9,} tokens  |  {nav_pct:.1f}% reduction")
+    click.echo(f"INDEX.detail.lsdf:   {detail_files_count:>4} files  |  {detail_tokens:>9,} tokens  |  {detail_pct:.1f}% reduction")
     click.echo("----------------------------------------")
-    click.echo(f"📉 Density Reduction:   {savings_percent:.1f}%")
-    click.echo(f"💰 Est. Savings (50 turns):  ${savings_50_turns:.2f}")
+    click.echo(f"💰 Est. Savings (50 turns, nav only):    ${nav_saved:.2f}")
+    click.echo(f"💰 Est. Savings (50 turns, detail only): ${detail_saved:.2f}")
     click.echo("========================================")
 
 
