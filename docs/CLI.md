@@ -9,10 +9,10 @@ The `lsdf` command line tool is the reference implementation for generating, val
 
 ## Commands
 
-- `lsdf init`: Setup project and agent rules.
-- `lsdf gen [path]`: Auto-generate indices from source.
-- `lsdf trans [file]`: Convert to/from human-readable Markdown.
-- `lsdf sync`: Check for drift (CI/CD).
+- `lsdf init`: Set up project and agent rules.
+- `lsdf gen`: Auto-generate indices from source.
+- `lsdf trans`: Convert to/from human-readable Markdown.
+- `lsdf sync`: Check for drift between source and indices.
 - `lsdf stats`: Calculate token savings.
 
 ### 1. `lsdf init`
@@ -21,11 +21,12 @@ Bootstraps the current directory with L-SDF configuration.
 
 - **Usage:** `lsdf init [OPTIONS]`
 - **Action:**
-  - Creates `.lsdfignore` (defaulting to node_modules, __pycache__, .git).
+  - Creates `.lsdfignore` (defaulting to node_modules, `__pycache__`, .git).
   - Creates `project.lsdf` with the root `^` sigil.
-  - Creates `.lsdf/` folder with AI instruction files and the GitHub Actions workflow template, without overwriting files that already exist.
+  - Creates `.lsdf/` folder with AI instruction files, without overwriting files that already exist.
   - Appends L-SDF instructions to any agent config files found (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, etc.).
-  - Copies `.github/workflows/update-lsdf.yml` if a `.github/` directory exists.
+- **Options:**
+  - `--ci`: Add a GitHub Actions workflow (`.github/workflows/update-lsdf.yml`) that regenerates indices on every push. Safe to re-run — will not overwrite an existing workflow.
 
 ### 2. `lsdf gen` (Generate)
 
@@ -63,12 +64,16 @@ Converts between L-SDF and Markdown.
   lsdf trans src/auth/INDEX.lsdf | less
   ```
 
-### 4. `lsdf sync` (CI/CD Mode)
+### 4. `lsdf sync` (Sync)
 
-Verifies that indices are up-to-date. Intended for Git Hooks or GitHub Actions.
+Verifies that indices are up-to-date.
 
-- **Usage:** `lsdf sync --check`
-- **Behavior:** Returns exit code `1` if a directory with Python files is missing `INDEX.lsdf`, or if the generated index content differs from the current file.
+- **Usage:** `lsdf sync [PATH] [OPTIONS]`
+- **Arguments:**
+  - `PATH`: The directory to scan (default: `.`).
+- **Options:**
+  - `--check`: Return exit code `1` when drift is detected. Intended for Git hooks or GitHub Actions.
+- **Behavior:** Reports any directories with Python files that are missing `INDEX.lsdf`, or where the index content differs from the current source.
 
 ### 5. `lsdf stats` (ROI Calculator)
 
