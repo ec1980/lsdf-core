@@ -410,12 +410,13 @@ def sync(ctx, path, check):
             stale_dirs.append((root, "missing INDEX.lsdf"))
             continue
 
-        expected_content = _build_index_content(root, files, verbose=False)
-        if expected_content is None:
-            continue
-
         with open(index_path, 'r') as f:
             current_content = f.read()
+
+        has_comments = any(line.lstrip().startswith('$') for line in current_content.splitlines())
+        expected_content = _build_index_content(root, files, verbose=False, include_comments=has_comments)
+        if expected_content is None:
+            continue
 
         if current_content.rstrip() != expected_content.rstrip():
             stale_dirs.append((root, "INDEX.lsdf content differs from generated output"))
