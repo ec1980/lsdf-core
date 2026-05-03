@@ -51,10 +51,11 @@ INDEX.detail.lsdf — full compact: !score_deal(deal:Deal,watch:Watch,cfg:Cfg):D
 ~pydantic:BaseModel,Field
 ```
 
-**Call edges** (detail index only): comma-separated callees, ordered by first appearance.
+**Call edges** (detail index only): comma-separated callees, ordered by first appearance. Module-level functions by name; methods qualified as `ClassName.method`.
 
 ```text
 !run_watch > load_watch,load_snapshot,score_watch,render_report
+!run > parse,Greeter.greet
 ```
 
 **Annotations** (`$`): detail index only, one short line max.

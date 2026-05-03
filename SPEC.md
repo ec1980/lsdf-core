@@ -189,6 +189,12 @@ Generated call edges express that a function invokes or depends on other project
 !caller > callee1,callee2,callee3
 ```
 
+Module-level functions are referenced by name. Methods are qualified with their class name:
+
+```text
+!run > parse,Greeter.greet
+```
+
 Chained `>` notation (implying a causal or data-flow chain) MUST NOT be used in generated output:
 
 ```text
