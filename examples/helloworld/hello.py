@@ -9,7 +9,6 @@ class Greeter:
 
     def say_hello(self, name: str) -> str:
         """Greet a single person and return the formatted message.
-
         Raises:
             ValueError: If name is an empty string.
         """
@@ -21,7 +20,6 @@ class Greeter:
 
     def greet(self, names: list[str]) -> list[str]:
         """Greet every non-empty name in the list in order.
-
         Empty strings are silently skipped.
         Returns a list of the formatted greeting messages.
         """
@@ -30,7 +28,6 @@ class Greeter:
 
 def parse(argv: list[str]) -> list[str]:
     """Return the list of names from argv, defaulting to [DEFAULT_NAME].
-
     Strips whitespace from each argument and drops any blank strings.
     """
     names = [a.strip() for a in argv if a.strip()]

@@ -41,7 +41,6 @@ class Greeter:
 
     def say_hello(self, name: str) -> str:
         """Greet a single person and return the formatted message.
-
         Raises:
             ValueError: If name is an empty string.
         """
@@ -53,26 +52,21 @@ class Greeter:
 
     def greet(self, names: list[str]) -> list[str]:
         """Greet every non-empty name in the list in order.
-
         Empty strings are silently skipped.
         Returns a list of the formatted greeting messages.
         """
         return [self.say_hello(n) for n in names if n.strip()]
 
-
 def parse(argv: list[str]) -> list[str]:
     """Return the list of names from argv, defaulting to [DEFAULT_NAME].
-
     Strips whitespace from each argument and drops any blank strings.
     """
     names = [a.strip() for a in argv if a.strip()]
     return names if names else [DEFAULT_NAME]
 
-
 def run() -> None:
     """Entry point: parse CLI args and greet each name in order."""
     Greeter().greet(parse(sys.argv[1:]))
-
 
 if __name__ == "__main__":
     run()
@@ -95,7 +89,6 @@ The index captures the full structure — imports, classes, and all signatures �
 
 | | Source (`hello.py`) | L-SDF Index (`INDEX.lsdf`) |
 | --- | --- | --- |
-| Lines | 46 | 7 |
 | Tokens | ~320 | ~34 |
 | Savings | — | **~10× fewer tokens** |
 
