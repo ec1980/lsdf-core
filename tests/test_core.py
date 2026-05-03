@@ -598,6 +598,51 @@ class TestCLI(unittest.TestCase):
                 project_lsdf = Path("project.lsdf").read_text(encoding="utf-8")
                 self.assertIn(" @.github:ci-cd", project_lsdf)
 
+    def test_init_writes_lsdf_version_to_project_manifest(self):
+        with TemporaryDirectory() as tmpdir:
+            with self.runner.isolated_filesystem(temp_dir=tmpdir):
+                result = self.runner.invoke(self.main, ["init"])
+                self.assertEqual(result.exit_code, 0, result.output)
+
+                project_lsdf = Path("project.lsdf").read_text(encoding="utf-8")
+                self.assertIn("$lsdf:", project_lsdf)
+
+    def test_init_detects_version_upgrade_and_overwrites_templates(self):
+        with TemporaryDirectory() as tmpdir:
+            with self.runner.isolated_filesystem(temp_dir=tmpdir):
+                # Simulate an old project.lsdf with no $lsdf: line (pre-1.1)
+                Path("project.lsdf").write_text("^myproject:Python\n", encoding="utf-8")
+                Path(".lsdf").mkdir()
+                old_instructions = Path(".lsdf") / "lsdf_instructions.md"
+                old_instructions.write_text("old instructions\n", encoding="utf-8")
+
+                result = self.runner.invoke(self.main, ["init"])
+                self.assertEqual(result.exit_code, 0, result.output)
+
+                self.assertIn("Upgrading", result.output)
+                # Template file must be overwritten with current version content
+                self.assertNotEqual(
+                    old_instructions.read_text(encoding="utf-8"), "old instructions\n"
+                )
+                # project.lsdf must now carry the current version
+                project_lsdf = Path("project.lsdf").read_text(encoding="utf-8")
+                self.assertIn("$lsdf:", project_lsdf)
+
+    def test_init_skips_templates_when_version_matches(self):
+        with TemporaryDirectory() as tmpdir:
+            with self.runner.isolated_filesystem(temp_dir=tmpdir):
+                # First init
+                self.runner.invoke(self.main, ["init"])
+                # Simulate a user customization to lsdf_instructions.md
+                custom = Path(".lsdf") / "lsdf_instructions.md"
+                custom.write_text("my custom instructions\n", encoding="utf-8")
+
+                # Re-run init — same version, so templates must NOT be overwritten
+                result = self.runner.invoke(self.main, ["init"])
+                self.assertEqual(result.exit_code, 0, result.output)
+                self.assertNotIn("Upgrading", result.output)
+                self.assertEqual(custom.read_text(encoding="utf-8"), "my custom instructions\n")
+
     def test_init_refreshes_existing_project_manifest(self):
         with TemporaryDirectory() as tmpdir:
             with self.runner.isolated_filesystem(temp_dir=tmpdir):

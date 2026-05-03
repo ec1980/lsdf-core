@@ -272,6 +272,23 @@ def _detect_top_level_zones(project_root):
     return zones
 
 
+def _read_project_lsdf_version(project_lsdf_path):
+    """Return the lsdf-core version recorded in project.lsdf.
+    Returns '1.0.0' if the file exists but has no $lsdf: line (pre-1.1 format).
+    Returns None if the file does not exist (fresh project).
+    """
+    if not os.path.exists(project_lsdf_path):
+        return None
+    try:
+        with open(project_lsdf_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("$lsdf:"):
+                    return line.strip()[6:]
+    except OSError:
+        pass
+    return "1.0.0"
+
+
 def _build_project_manifest(project_root):
     project_name = os.path.basename(os.path.abspath(project_root))
     stack = ",".join(_detect_stack_markers(project_root))
@@ -283,6 +300,8 @@ def _build_project_manifest(project_root):
     frameworks = _detect_frameworks_and_deps(project_root)
     if frameworks:
         lines.append(" ~[" + ",".join(frameworks) + "]")
+
+    lines.append(f"$lsdf:{_package_version()}")
 
     return "\n".join(lines) + "\n"
 
@@ -390,7 +409,14 @@ def init(ci):
     # 2. Locate the SOURCE templates inside the installed package
     source_dir = Path(__file__).parent.parent / ".lsdf"
 
-    # 3. Create .lsdfignore and project.lsdf
+    # 3. Detect version for upgrade check
+    current_version = _package_version()
+    stored_version = _read_project_lsdf_version("project.lsdf")
+    is_upgrade = stored_version is not None and stored_version != current_version
+    if is_upgrade:
+        click.echo(f"⬆️  Upgrading L-SDF from {stored_version} to {current_version}")
+
+    # 4. Create .lsdfignore and project.lsdf
     if not Path(".lsdfignore").exists():
         with Path(".lsdfignore").open("w", encoding="utf-8") as f:
             f.write(
@@ -403,27 +429,30 @@ def init(ci):
                 ".vscode\n"
                 ".github\n"
             )
-    
+
     project_manifest = _build_project_manifest(str(Path.cwd()))
     with Path("project.lsdf").open("w", encoding="utf-8") as f:
         f.write(project_manifest)
 
-    # 4. Copy template files into .lsdf/
+    # 5. Copy template files into .lsdf/ (overwrite on upgrade)
     if source_dir.exists():
         copied_files = 0
         skipped_files = 0
         for template in source_dir.glob("*"):
             if template.is_file() and template.name != "update-lsdf.yml":
                 destination = target_lsdf_dir / template.name
-                if destination.exists():
+                if destination.exists() and not is_upgrade:
                     skipped_files += 1
                     continue
                 shutil.copy(template, destination)
                 copied_files += 1
-        click.echo(
-            f"✅ L-SDF Initialized. Added {copied_files} file(s) to {target_lsdf_dir}/"
-            f" and preserved {skipped_files} existing file(s)."
-        )
+        if is_upgrade:
+            click.echo(f"✅ Updated {copied_files} template file(s) in {target_lsdf_dir}/")
+        else:
+            click.echo(
+                f"✅ L-SDF Initialized. Added {copied_files} file(s) to {target_lsdf_dir}/"
+                f" and preserved {skipped_files} existing file(s)."
+            )
     else:
         click.echo("⚠️  Template source not found. Creating basic placeholder rules.")
         fallback_file = target_lsdf_dir / "lsdf_instructions.md"
