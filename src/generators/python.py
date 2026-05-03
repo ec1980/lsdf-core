@@ -210,8 +210,27 @@ class PythonGenerator:
                         routes.append(f'#{method.upper()} {first.value}')
             return routes
 
-        def _is_dunder(name):
-            return name.startswith('__') and name.endswith('__')
+        def _should_skip(func_node):
+            name = func_node.name
+            # Dunder methods
+            if name.startswith('__') and name.endswith('__'):
+                return True
+            # Single-underscore private helpers
+            if name.startswith('_'):
+                return True
+            # Property accessors (@property, @x.setter, @x.deleter, @x.getter)
+            for dec in func_node.decorator_list:
+                if isinstance(dec, ast.Name) and dec.id == 'property':
+                    return True
+                if isinstance(dec, ast.Attribute) and dec.attr in ('setter', 'deleter', 'getter'):
+                    return True
+            # Test fixtures (@fixture / @pytest.fixture)
+            for dec in func_node.decorator_list:
+                if isinstance(dec, ast.Name) and dec.id == 'fixture':
+                    return True
+                if isinstance(dec, ast.Attribute) and dec.attr == 'fixture':
+                    return True
+            return False
 
         def _bases_suffix(item):
             bases = []
@@ -227,12 +246,12 @@ class PythonGenerator:
                 nav_lines.append(f'{indent}@{item.name}{_bases_suffix(item)}')
                 for sub in item.body:
                     if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                        if not _is_dunder(sub.name):
+                        if not _should_skip(sub):
                             append_nav(sub, indent + ' ')
                     elif isinstance(sub, ast.ClassDef):
                         append_nav(sub, indent + ' ')
             elif isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                if _is_dunder(item.name):
+                if _should_skip(item):
                     return
                 nav_lines.append(f'{indent}!{item.name}')
 
@@ -247,12 +266,12 @@ class PythonGenerator:
                             else f'{indent} ?{sub.target.id}'
                         )
                     elif isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                        if not _is_dunder(sub.name):
+                        if not _should_skip(sub):
                             append_detail(sub, indent + ' ', in_class=item.name)
                     elif isinstance(sub, ast.ClassDef):
                         append_detail(sub, indent + ' ', in_class=in_class)
             elif isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                if _is_dunder(item.name):
+                if _should_skip(item):
                     return
                 args = _compact_args(item)
                 ret = _compact_ret(item)

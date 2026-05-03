@@ -221,6 +221,48 @@ class TestLSDF(unittest.TestCase):
             self.assertIn("!greet(names) > say_hello", detail)
             self.assertIn("!run > Greeter.greet,parse", detail)
 
+    def test_python_generator_skips_low_value_symbols(self):
+        with TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "sample.py"
+            file_path.write_text(
+                "import pytest\n"
+                "\n"
+                "class User:\n"
+                "    def __init__(self):\n"
+                "        self.x = 1\n"
+                "    def _validate(self):\n"
+                "        return True\n"
+                "    @property\n"
+                "    def name(self):\n"
+                "        return self.x\n"
+                "    @name.setter\n"
+                "    def name(self, val):\n"
+                "        self.x = val\n"
+                "    def public_method(self):\n"
+                "        return self.x\n"
+                "\n"
+                "@pytest.fixture\n"
+                "def my_fixture():\n"
+                "    return User()\n"
+                "\n"
+                "def _helper():\n"
+                "    pass\n"
+                "\n"
+                "def public_fn():\n"
+                "    pass\n",
+                encoding="utf-8",
+            )
+
+            nav, detail = PythonGenerator().generate(str(file_path))
+            for output in (nav, detail):
+                self.assertNotIn("__init__", output)
+                self.assertNotIn("_validate", output)
+                self.assertNotIn("!name", output)        # property accessor
+                self.assertNotIn("my_fixture", output)
+                self.assertNotIn("_helper", output)
+                self.assertIn("!public_method", output)
+                self.assertIn("!public_fn", output)
+
     def test_python_generator_omits_dunders(self):
         with TemporaryDirectory() as tmpdir:
             file_path = Path(tmpdir) / "sample.py"
