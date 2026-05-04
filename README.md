@@ -98,7 +98,7 @@ Running `lsdf gen examples/helloworld` produces two index files.
  !run > Greeter.greet,parse
 ```
 
-Both files strip every docstring, comment, and implementation body. `self` is omitted, `()` is omitted for zero-argument functions, and standard type aliases replace verbose names (`s`=str, `[s]`=list[str]).
+Both files strip every docstring, comment, and implementation body. `self` is omitted, `()` is omitted for zero-argument functions, and standard type aliases replace verbose names (`s`=str, `a`=Any, `[s]`=list[str], `q[s]`=Sequence[str], `l[...]`=Literal[...]).
 
 | | Source (`hello.py`) | `INDEX.lsdf` | `INDEX.detail.lsdf` |
 | --- | --- | --- | --- |
@@ -235,24 +235,9 @@ L-SDF works with your existing AI tools by providing them with a "map" to read b
 
 You can compare agent behavior with and without LSDF guidance.
 
-#### Claude Code Query
+#### Suggested Prompt
 
-> Count the number of functions in the src dir, with and without using LSDF files. Compare the answers, show the number of files opened and tokens used in both cases in a table.
-
-#### Claude Code Response
-
-> Function count: both methods agree — 219 functions
->
-> | Metric | LSDF Method | Source Scan Method |
-> | ------ | ----------- | ----------------- |
-> | **Function count** | **219** | **219** |
-> | Files opened | 3 | 12 |
-> | Lines read | 568 | 6,453 |
-> | Characters | 25,936 | 230,525 |
-> | Estimated tokens (chars ÷ 4) | ~6,484 | ~57,631 |
-> | **Token reduction** | — | **~9× more expensive** |
->
-> The LSDF indices are complete and accurate — every ! sigil maps exactly to a def in the source. The 9× token savings comes from the LSDF stripping docstrings, comments, implementations, and type annotation bodies, leaving only signatures and structural metadata. The payoff grows further in large repos where only a subset of modules are relevant — LSDF lets you skip loading entire files entirely.
+> Count the number of public functions in the src dir that has no return value, with and without using LSDF files. Compare the answers, show the number of files opened and tokens used in both cases.
 
 ----
 

@@ -33,15 +33,16 @@ INDEX.detail.lsdf — full compact: !score_deal(deal:Deal,watch:Watch,cfg:Cfg):D
 
 | Alias | Type | Alias | Type |
 | :---: | :--- | :---: | :--- |
-| `s` | `str` | `u` | `uuid` |
+| `s` | `str` | `a` | `Any` |
 | `i` | `int` | `[x]` | `list[x]` |
-| `f` | `float` | `{k:v}` | `dict[k,v]` |
-| `b` | `bool` | `x?` | `optional[x]` |
+| `f` | `float` | `q[x]` | `Sequence[x]` |
+| `b` | `bool` | `l[...]` | `Literal[...]` |
+| `{k:v}` | `dict[k,v]` | `x?` | `optional[x]` |
 
 **Schemas:** Prefer one-line form; use multiline only when too long to diff.
 
 ```text
-?User{id:u,email:s,active:b}
+?User{id:uuid,email:s,active:b}
 ```
 
 **Dependencies:** Comma-separated modules; colon-separated symbols.

@@ -4,7 +4,7 @@ import os
 
 TYPE_ALIASES = {
     'str': 's', 'int': 'i', 'float': 'f', 'bool': 'b',
-    'uuid': 'u', 'UUID': 'u',
+    'Any': 'a',
 }
 
 
@@ -35,6 +35,23 @@ def _alias_annotation(node):
         if value_name in ('list', 'List'):
             inner = _alias_annotation(node.slice)
             return f'[{inner}]' if inner else '[?]'
+
+        if value_name in ('Sequence',):
+            inner = _alias_annotation(node.slice)
+            return f'q[{inner}]' if inner else 'q[?]'
+
+        if value_name == 'Literal':
+            if isinstance(node.slice, ast.Tuple):
+                try:
+                    literal_inner = ",".join(ast.unparse(elt) for elt in node.slice.elts)
+                except Exception:
+                    literal_inner = '?'
+            else:
+                try:
+                    literal_inner = ast.unparse(node.slice)
+                except Exception:
+                    literal_inner = '?'
+            return f'l[{literal_inner}]'
 
         if value_name in ('dict', 'Dict'):
             if isinstance(node.slice, ast.Tuple) and len(node.slice.elts) == 2:

@@ -45,11 +45,139 @@ class TestLSDF(unittest.TestCase):
         self.assertIn("@user.py", lsdf)
         self.assertIn("!login", lsdf)
 
+    def test_from_markdown_compacts_function_signatures_and_calls(self):
+        md = (
+            "## File: cli.py\n"
+            " - **Function:** build_output_path(output_dir: Path, user_id: str, generated_at): Path\n"
+            " - **Function:** build_parser: argparse.ArgumentParser\n"
+            " - **Function:** write_output(path: Path, payload: dict)\n"
+            " - **Function:** main(argv: Optional[Sequence[str]]): int\n"
+            "   - *Calls:* `build_parser`, `build_output_path`, `write_output`"
+        )
+        lsdf = from_markdown(md)
+        self.assertIn("@cli.py", lsdf)
+        self.assertIn(" !build_output_path(output_dir:Path,user_id:s,generated_at):Path", lsdf)
+        self.assertIn(" !build_parser:argparse.ArgumentParser", lsdf)
+        self.assertIn(" !write_output(path:Path,payload:dict)", lsdf)
+        self.assertIn(" !main(argv:q[s]?):i > build_parser,build_output_path,write_output", lsdf)
+
     def test_from_markdown_emphasis_and_code_blocks(self):
         md = "**Dependencies:** requests, click\n```python\nprint('hi')\n```"
         lsdf = from_markdown(md)
-        self.assertIn("~requests, click", lsdf)
+        self.assertIn("~requests,click", lsdf)
         self.assertIn("\\print('hi')", lsdf)
+
+    def test_from_markdown_accepts_imports_label(self):
+        md = (
+            "## File: cli.py\n"
+            " - **Imports:** `argparse`, `json`\n"
+            " - **Imports:** `deal_scorer.pipeline`: `run_watch_pipeline`, `run_watches_pipeline`\n"
+            " - **Imports:** `pathlib`: `Path`\n"
+            " - **Imports:** `pydantic`: `ValidationError`\n"
+            " - **Imports:** `typing`: `Sequence`"
+        )
+        lsdf = from_markdown(md)
+        self.assertIn("@cli.py", lsdf)
+        self.assertIn(" ~argparse,json", lsdf)
+        self.assertIn(" ~deal_scorer.pipeline:run_watch_pipeline,run_watches_pipeline", lsdf)
+        self.assertIn(" ~pathlib:Path", lsdf)
+        self.assertIn(" ~pydantic:ValidationError", lsdf)
+        self.assertIn(" ~typing:Sequence", lsdf)
+
+    def test_from_markdown_compacts_schema_field_bullets(self):
+        md = (
+            "## File: cli.py\n"
+            " - **Schema:** RawVtgDealRow\n"
+            "   - deal_id: str\n"
+            "   - deal_url: Optional[str]\n"
+            "   - nights: Optional[str]\n"
+            "   - depart_date: Optional[str]\n"
+            "   - departs_from: Optional[str]\n"
+            "   - departs_from_url: Optional[str]"
+        )
+        lsdf = from_markdown(md)
+        self.assertIn("@cli.py", lsdf)
+        self.assertIn(" ?RawVtgDealRow", lsdf)
+        self.assertIn("  ?deal_id:s", lsdf)
+        self.assertIn("  ?deal_url:s?", lsdf)
+        self.assertIn("  ?nights:s?", lsdf)
+        self.assertIn("  ?depart_date:s?", lsdf)
+        self.assertIn("  ?departs_from:s?", lsdf)
+        self.assertIn("  ?departs_from_url:s?", lsdf)
+
+    def test_from_markdown_collapses_short_schema_blocks_inline(self):
+        md = (
+            "## File: contracts.py\n"
+            "  - **Schema:** UserStatus\n"
+            "    - active: bool"
+        )
+        lsdf = from_markdown(md)
+        self.assertIn("@contracts.py", lsdf)
+        self.assertIn(" ?UserStatus{active:b}", lsdf)
+        self.assertNotIn(" ?UserStatus\n  ?active:b", lsdf)
+
+    def test_from_markdown_keeps_long_schema_blocks_multiline(self):
+        md = (
+            "## File: contracts.py\n"
+            "  - **Schema:** RawVtgDealRow\n"
+            "    - deal_id: str\n"
+            "    - deal_url: Optional[str]\n"
+            "    - nights: Optional[str]\n"
+            "    - depart_date: Optional[str]\n"
+            "    - departs_from: Optional[str]\n"
+            "    - departs_from_url: Optional[str]"
+        )
+        lsdf = from_markdown(md)
+        self.assertIn(" ?RawVtgDealRow", lsdf)
+        self.assertIn("  ?deal_id:s", lsdf)
+        self.assertNotIn("?RawVtgDealRow{", lsdf)
+
+    def test_from_markdown_compacts_entity_field_bullets(self):
+        md = (
+            "## Class: MatchedFeedbackReason\n"
+            "  - canonical_reason: str\n"
+            "  - matched_alias: str\n"
+            "  - original_reason: str\n"
+            "  - deal_id: str\n"
+            "  - vote: int\n"
+            "  - similarity: float"
+        )
+        lsdf = from_markdown(md)
+        self.assertIn("@MatchedFeedbackReason", lsdf)
+        self.assertIn(" ?canonical_reason:s", lsdf)
+        self.assertIn(" ?matched_alias:s", lsdf)
+        self.assertIn(" ?original_reason:s", lsdf)
+        self.assertIn(" ?deal_id:s", lsdf)
+        self.assertIn(" ?vote:i", lsdf)
+        self.assertIn(" ?similarity:f", lsdf)
+
+    def test_from_markdown_uses_parent_relative_indent_for_schema_fields(self):
+        md = (
+            "## File: contracts.py\n"
+            "  - **Schema:** RawVtgDealRow\n"
+            "      - deal_id: str\n"
+            "      - deal_url: Optional[str]"
+        )
+        lsdf = from_markdown(md)
+        self.assertIn("@contracts.py", lsdf)
+        self.assertIn(" ?RawVtgDealRow", lsdf)
+        self.assertIn("  ?deal_id:s", lsdf)
+        self.assertIn("  ?deal_url:s?", lsdf)
+        self.assertNotIn("   ?deal_id:s", lsdf)
+
+    def test_from_markdown_compacts_function_signature_with_nested_generics(self):
+        md = (
+            "## File: update_watch.py\n"
+            "  - **Function:** build_compact_scored_watch_for_feedback("
+            "current_scored_watch: dict[str, Any], feedback_for_watch: dict[str, Any], watch: WatchFile"
+            "): dict[str, Any]"
+        )
+        lsdf = from_markdown(md)
+        self.assertIn("@update_watch.py", lsdf)
+        self.assertIn(
+            " !build_compact_scored_watch_for_feedback(current_scored_watch:{s:a},feedback_for_watch:{s:a},watch:WatchFile):{s:a}",
+            lsdf,
+        )
 
     def test_from_markdown_nested_semantic_bullets(self):
         md = "# Project: Test\n## Module: user\n  - **Class:** User\n    - **Function:** login"
@@ -94,7 +222,7 @@ class TestLSDF(unittest.TestCase):
         self.assertIn("`say_hello`", md)
 
     def test_to_markdown_inline_schema(self):
-        md = to_markdown("?User{id:u,email:s,active:b}")
+        md = to_markdown("?User{id:uuid,email:s,active:b}")
         self.assertIn("#### Schema: User", md)
         self.assertIn("  - id: uuid", md)
         self.assertIn("  - email: str", md)
@@ -106,7 +234,7 @@ class TestLSDF(unittest.TestCase):
         self.assertIn("value: str", md)
 
     def test_to_markdown_schema_field_lines(self):
-        md = to_markdown("?User\n ?id:u\n ?email:s")
+        md = to_markdown("?User\n ?id:uuid\n ?email:s")
         self.assertIn("#### Schema: User", md)
         self.assertIn("  - id: uuid", md)
         self.assertIn("  - email: str", md)
@@ -117,8 +245,10 @@ class TestLSDF(unittest.TestCase):
         self.assertEqual(_expand_type('i'), 'int')
         self.assertEqual(_expand_type('f'), 'float')
         self.assertEqual(_expand_type('b'), 'bool')
-        self.assertEqual(_expand_type('u'), 'uuid')
+        self.assertEqual(_expand_type('a'), 'Any')
         self.assertEqual(_expand_type('[s]'), 'list[str]')
+        self.assertEqual(_expand_type('q[s]'), 'Sequence[str]')
+        self.assertEqual(_expand_type("l['a','b']"), "Literal['a','b']")
         self.assertEqual(_expand_type('{s:i}'), 'dict[str, int]')
         self.assertEqual(_expand_type('b?'), 'Optional[bool]')
         self.assertEqual(_expand_type('[s]?'), 'Optional[list[str]]')
@@ -142,6 +272,22 @@ class TestLSDF(unittest.TestCase):
         self.assertIn("available_cabin_classes: list[str]", md)
         self.assertIn("selected_offer: Optional[dict[str, str]]", md)
         self.assertIn("display_price_now: Optional[float]", md)
+
+    def test_to_markdown_expands_new_short_types(self):
+        lsdf = (
+            "?TypeDemo\n"
+            " ?payload:a\n"
+            " ?created_at:datetime\n"
+            " ?source_path:Path\n"
+            " ?levels:q[i]\n"
+            " ?status:l['new','done']"
+        )
+        md = to_markdown(lsdf)
+        self.assertIn("payload: Any", md)
+        self.assertIn("created_at: datetime", md)
+        self.assertIn("source_path: Path", md)
+        self.assertIn("levels: Sequence[int]", md)
+        self.assertIn("status: Literal['new','done']", md)
 
     def test_to_markdown_imports_with_symbols(self):
         md = to_markdown("~pydantic:BaseModel,Field")
@@ -285,7 +431,9 @@ class TestLSDF(unittest.TestCase):
         with TemporaryDirectory() as tmpdir:
             file_path = Path(tmpdir) / "sample.py"
             file_path.write_text(
-                "from typing import Optional\n"
+                "from pathlib import Path\n"
+                "from typing import Any, Literal, Optional, Sequence\n"
+                "from datetime import date, datetime\n"
                 "\n"
                 "def process(name: str, count: int, active: bool) -> float:\n"
                 "    return 1.0\n"
@@ -294,7 +442,10 @@ class TestLSDF(unittest.TestCase):
                 "    return {}\n"
                 "\n"
                 "def maybe(val: Optional[str]) -> str | None:\n"
-                "    return val\n",
+                "    return val\n"
+                "\n"
+                "def enrich(payload: Any, created_at: datetime, due: date, path: Path, labels: Sequence[str]) -> Literal['ok', 'bad']:\n"
+                "    return 'ok'\n",
                 encoding="utf-8",
             )
 
@@ -303,6 +454,7 @@ class TestLSDF(unittest.TestCase):
             self.assertIn("!load(items:[s]):{s:i}", detail)
             self.assertIn("!maybe(val:s?)", detail)
             self.assertIn(":s?", detail)
+            self.assertIn("!enrich(payload:a,created_at:datetime,due:date,path:Path,labels:q[s]):l['ok','bad']", detail)
 
     def test_python_generator_call_edges(self):
         with TemporaryDirectory() as tmpdir:
