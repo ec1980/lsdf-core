@@ -29,6 +29,33 @@ def _expand_field(field_str):
     return f'{name.strip()}: {_expand_type(type_compact.strip())}'
 
 
+def _expand_signature(sig):
+    """Expand type aliases in a compact function signature 'name(arg:type,...):ret'."""
+    m = re.match(r'^([^(:]+)(\(([^)]*)\))?(:(.+))?$', sig)
+    if not m:
+        return sig
+    name = m.group(1)
+    args_str = m.group(3)
+    ret = m.group(5)
+
+    result = name
+    if args_str is not None:
+        expanded_args = []
+        for arg in args_str.split(','):
+            arg = arg.strip()
+            if not arg:
+                continue
+            if ':' in arg:
+                aname, _, atype = arg.partition(':')
+                expanded_args.append(f'{aname.strip()}: {_expand_type(atype.strip())}')
+            else:
+                expanded_args.append(arg)
+        result += f"({', '.join(expanded_args)})"
+    if ret:
+        result += f": {_expand_type(ret.strip())}"
+    return result
+
+
 def _entity_label(content):
     if content.startswith("INDEX:"):
         return "DIR"
@@ -95,6 +122,7 @@ def to_markdown(lsdf_content):
                 if ' > ' in content:
                     func_part, _, callees_str = content.partition(' > ')
                     callees_md = ', '.join(f'`{c.strip()}`' for c in callees_str.split(','))
+                func_part = _expand_signature(func_part)
                 if indent:
                     md.append(f"{indent}- **Function:** {func_part}")
                     if callees_md:

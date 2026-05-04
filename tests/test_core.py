@@ -69,6 +69,17 @@ class TestLSDF(unittest.TestCase):
         md = to_markdown("@INDEX:deal_scorer")
         self.assertIn("# DIR: deal_scorer", md)
 
+    def test_expand_signature(self):
+        from src.core import _expand_signature
+        self.assertEqual(_expand_signature('run'), 'run')
+        self.assertEqual(_expand_signature('parse_float(value:s?):f?'),
+                         'parse_float(value: Optional[str]): Optional[float]')
+        self.assertEqual(_expand_signature('greet(names:[s]):[s]'),
+                         'greet(names: list[str]): list[str]')
+        self.assertEqual(_expand_signature('score(deal:Deal,cfg:Cfg):DealScore'),
+                         'score(deal: Deal, cfg: Cfg): DealScore')
+        self.assertEqual(_expand_signature('run > Greeter.greet'), 'run > Greeter.greet')
+
     def test_to_markdown_call_edges(self):
         md = to_markdown("!run > Greeter.greet,parse")
         self.assertIn("### Function: run", md)
@@ -78,7 +89,7 @@ class TestLSDF(unittest.TestCase):
 
     def test_to_markdown_call_edges_nested(self):
         md = to_markdown(" !greet(names:[s]):[s] > say_hello")
-        self.assertIn("- **Function:** greet(names:[s]):[s]", md)
+        self.assertIn("- **Function:** greet(names: list[str]): list[str]", md)
         self.assertIn("*Calls:*", md)
         self.assertIn("`say_hello`", md)
 
