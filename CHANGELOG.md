@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.1.1 - 2026-05-04
+
+### Changed
+
+- `lsdf stats` now reports session cost and savings with configurable pricing, turns, cache hit rate, and drilldown rate.
+- `lsdf trans` is now one-way: `.lsdf` to Markdown only.
+- CLI docs and README were updated to match the current `stats` output and `trans` behavior.
+
 ## 1.1.0 - 2026-05-03
 
 ### Added

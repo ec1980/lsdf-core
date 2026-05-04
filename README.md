@@ -156,6 +156,8 @@ If you want to modify the L-SDF source code or run the test suite:
 conda env create -f environment.yml
 conda activate lsdf-dev
 pytest tests/
+# or, without pytest:
+PYTHONPATH=. python3 -m unittest tests.test_core -v
 ```
 
 ### 2. Initialize Any Repo
@@ -282,6 +284,8 @@ In L-SDF, sigils act as single-character semantic tags. Instead of wasting token
 | `?` | **Schema** | Data types, interfaces, variable shapes, or database models. | `pydantic.BaseModel` |
 | `$` | **Annotation** | Important comments, notes, caveats, or rationale. | `# TODO: handle legacy fallback` |
 | `#` | **Route** | API endpoint, webhook, or URL path. | `@app.get("/users")` |
+
+*Note: sigils like `#`, `@`, and `!` may resemble host-language syntax, but the overlap is only cosmetic: sigils live in dedicated .lsdf files and are interpreted by the L-SDF format, not by the host language parser.*
 
 > See `SPEC.md` for the full specification.
 

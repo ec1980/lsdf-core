@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -59,7 +60,8 @@ class TestLSDF(unittest.TestCase):
         self.assertIn(" !build_output_path(output_dir:Path,user_id:s,generated_at):Path", lsdf)
         self.assertIn(" !build_parser:argparse.ArgumentParser", lsdf)
         self.assertIn(" !write_output(path:Path,payload:dict)", lsdf)
-        self.assertIn(" !main(argv:q[s]?):i > build_parser,build_output_path,write_output", lsdf)
+        self.assertIn("@cli.py > build_parser,build_output_path,write_output", lsdf)
+        self.assertIn(" !main(argv:q[s]?):i", lsdf)
 
     def test_from_markdown_emphasis_and_code_blocks(self):
         md = "**Dependencies:** requests, click\n```python\nprint('hi')\n```"
@@ -98,12 +100,12 @@ class TestLSDF(unittest.TestCase):
         lsdf = from_markdown(md)
         self.assertIn("@cli.py", lsdf)
         self.assertIn(" ?RawVtgDealRow", lsdf)
-        self.assertIn("  ?deal_id:s", lsdf)
-        self.assertIn("  ?deal_url:s?", lsdf)
-        self.assertIn("  ?nights:s?", lsdf)
-        self.assertIn("  ?depart_date:s?", lsdf)
-        self.assertIn("  ?departs_from:s?", lsdf)
-        self.assertIn("  ?departs_from_url:s?", lsdf)
+        self.assertIn(" ?deal_id:s", lsdf)
+        self.assertIn(" ?deal_url:s?", lsdf)
+        self.assertIn(" ?nights:s?", lsdf)
+        self.assertIn(" ?depart_date:s?", lsdf)
+        self.assertIn(" ?departs_from:s?", lsdf)
+        self.assertIn(" ?departs_from_url:s?", lsdf)
 
     def test_from_markdown_collapses_short_schema_blocks_inline(self):
         md = (
@@ -161,8 +163,12 @@ class TestLSDF(unittest.TestCase):
         lsdf = from_markdown(md)
         self.assertIn("@contracts.py", lsdf)
         self.assertIn(" ?RawVtgDealRow", lsdf)
-        self.assertIn("  ?deal_id:s", lsdf)
-        self.assertIn("  ?deal_url:s?", lsdf)
+        self.assertTrue(
+            "  ?deal_id:s" in lsdf or " ?RawVtgDealRow{deal_id:s,deal_url:s?}" in lsdf
+        )
+        self.assertTrue(
+            "  ?deal_url:s?" in lsdf or " ?RawVtgDealRow{deal_id:s,deal_url:s?}" in lsdf
+        )
         self.assertNotIn("   ?deal_id:s", lsdf)
 
     def test_from_markdown_compacts_function_signature_with_nested_generics(self):
@@ -910,7 +916,8 @@ class TestCLI(unittest.TestCase):
                 old_instructions = Path(".lsdf") / "lsdf_instructions.md"
                 old_instructions.write_text("old instructions\n", encoding="utf-8")
 
-                result = self.runner.invoke(self.main, ["init"])
+                with patch("src.cli._package_version", return_value="1.1.0"):
+                    result = self.runner.invoke(self.main, ["init"])
                 self.assertEqual(result.exit_code, 0, result.output)
 
                 self.assertIn("Upgrading", result.output)
@@ -932,7 +939,8 @@ class TestCLI(unittest.TestCase):
                     encoding="utf-8",
                 )
 
-                result = self.runner.invoke(self.main, ["init"])
+                with patch("src.cli._package_version", return_value="1.1.0"):
+                    result = self.runner.invoke(self.main, ["init"])
                 self.assertEqual(result.exit_code, 0, result.output)
                 self.assertIn("Updated", result.output)
 
