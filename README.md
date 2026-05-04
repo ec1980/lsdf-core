@@ -275,4 +275,4 @@ In L-SDF, sigils act as single-character semantic tags. Instead of wasting token
 
 ## Contributing
 
-L-SDF is an open standard. We welcome new Generators for different languages (Go, Rust, TS) and Translators for new AI IDEs.
+L-SDF is an open standard. We welcome new Generators for different languages (Go, Rust, TS).
