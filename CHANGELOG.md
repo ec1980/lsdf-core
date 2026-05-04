@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.1.2 - 2026-05-04
+
+### Changed
+
+- Refined package metadata in `pyproject.toml`, including project URLs, Python version requirements, classifiers, and license metadata.
+- Clarified README and spec language around agent-first usage, call edges, workflow guidance, and current limitations.
+- Added release-supporting project docs including `SECURITY.md`.
+
 ## 1.1.1 - 2026-05-04
 
 ### Changed
