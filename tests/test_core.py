@@ -69,6 +69,67 @@ class TestLSDF(unittest.TestCase):
         md = to_markdown("@INDEX:deal_scorer")
         self.assertIn("# DIR: deal_scorer", md)
 
+    def test_to_markdown_call_edges(self):
+        md = to_markdown("!run > Greeter.greet,parse")
+        self.assertIn("### Function: run", md)
+        self.assertIn("*Calls:*", md)
+        self.assertIn("`Greeter.greet`", md)
+        self.assertIn("`parse`", md)
+
+    def test_to_markdown_call_edges_nested(self):
+        md = to_markdown(" !greet(names:[s]):[s] > say_hello")
+        self.assertIn("- **Function:** greet(names:[s]):[s]", md)
+        self.assertIn("*Calls:*", md)
+        self.assertIn("`say_hello`", md)
+
+    def test_to_markdown_inline_schema(self):
+        md = to_markdown("?User{id:u,email:s,active:b}")
+        self.assertIn("#### Schema: User", md)
+        self.assertIn("  - `id:u`", md)
+        self.assertIn("  - `email:s`", md)
+        self.assertIn("  - `active:b`", md)
+
+    def test_to_markdown_inline_schema_nested(self):
+        md = to_markdown(" ?Token{value:s,expires:i}")
+        self.assertIn("- **Schema:** Token", md)
+        self.assertIn("`value:s`", md)
+
+    def test_to_markdown_schema_field_lines(self):
+        md = to_markdown("?User\n ?id:u\n ?email:s")
+        self.assertIn("#### Schema: User", md)
+        self.assertIn("  - **Schema:** id:u", md)
+        self.assertIn("  - **Schema:** email:s", md)
+
+    def test_to_markdown_imports_with_symbols(self):
+        md = to_markdown("~pydantic:BaseModel,Field")
+        self.assertIn("`pydantic`", md)
+        self.assertIn("`BaseModel`", md)
+        self.assertIn("`Field`", md)
+
+    def test_to_markdown_imports_framework_list(self):
+        md = to_markdown("~[FastAPI,Pydantic]")
+        self.assertIn("`FastAPI`", md)
+        self.assertIn("`Pydantic`", md)
+
+    def test_to_markdown_imports_bare_modules(self):
+        md = to_markdown("~os,pathlib")
+        self.assertIn("`os`", md)
+        self.assertIn("`pathlib`", md)
+
+    def test_to_markdown_route(self):
+        md = to_markdown(" #GET /users")
+        self.assertIn("**Route:** `GET /users`", md)
+
+    def test_to_markdown_entry_point(self):
+        md = to_markdown(" !lsdf=src.cli:main")
+        self.assertIn("**Entry point:**", md)
+        self.assertIn("`lsdf`", md)
+        self.assertIn("`src.cli:main`", md)
+
+    def test_to_markdown_lsdf_version_annotation(self):
+        md = to_markdown("$lsdf:1.1.0")
+        self.assertIn("lsdf-core 1.1.0", md)
+
     def test_python_generator_produces_two_tier_output(self):
         with TemporaryDirectory() as tmpdir:
             file_path = Path(tmpdir) / "sample.py"
