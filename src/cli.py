@@ -669,13 +669,31 @@ def sync(ctx, path, check):
 
 @main.command()
 @click.argument('path', default='.')
-def stats(path):
+@click.option('--price', type=float, default=3.0, show_default=True,
+              help='Input token cost per million tokens.')
+@click.option('--turns', type=click.IntRange(min=1), default=50, show_default=True,
+              help='Turns per coding session.')
+@click.option('--cache_hit_rate', type=click.FloatRange(min=0.0, max=1.0), default=0.8, show_default=True,
+              help='Fraction of cached reads served from cache.')
+@click.option('--dd', type=click.FloatRange(min=0.0, max=1.0), default=0.2, show_default=True,
+              help='Fraction of turns that drill into raw source.')
+@click.option('--verbose', is_flag=True, help='Print model assumptions.')
+def stats(path, price, turns, cache_hit_rate, dd, verbose):
     """Calculates token savings (Source Code vs. L-SDF Indices)."""
-    import os
 
-    SOURCE_EXTENSIONS = {'.py', '.js', '.ts', '.tsx', '.jsx', '.go', '.rs', '.java', '.cpp', '.c', '.h'}
-    IGNORE_DIRS = {'.git', '__pycache__', 'venv', 'node_modules', '.lsdf', '.idea', '.vscode'}
-    
+    # ── Model configuration ──────────────────────────────────────────────────
+    SOURCE_EXTENSIONS  = {'.py', '.js', '.ts', '.tsx', '.jsx', '.go', '.rs',
+                          '.java', '.cpp', '.c', '.h'}
+    IGNORE_DIRS        = {'.git', '__pycache__', 'venv', 'node_modules',
+                          '.lsdf', '.idea', '.vscode'}
+    CHARS_PER_TOKEN    = 4      # approximate chars per token
+    ORIENTATION_RATE   = 0.15   # source-open overhead without L-SDF
+    DETAIL_OPEN_RATE   = 0.20   # fraction of turns that read INDEX.detail.lsdf
+    DRILLDOWN_TOKENS   = 10_000 # uncached source tokens per drilldown
+    CACHE_READ_RATIO   = 0.10   # cache read price as fraction of input price
+    CACHE_WRITE_RATIO  = 1.25   # cache write price as fraction of input price
+    # ─────────────────────────────────────────────────────────────────────────
+
     source_chars = 0
     nav_chars = 0
     detail_chars = 0
@@ -683,18 +701,13 @@ def stats(path):
     nav_files_count = 0
     detail_files_count = 0
 
-    click.echo(f"🔍 Analyzing project density in '{path}'...")
-
     for root, dirs, files in os.walk(path):
         dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
-
         for file in files:
             file_path = os.path.join(root, file)
             _, ext = os.path.splitext(file)
-
             try:
                 file_size = os.path.getsize(file_path)
-
                 if file in ("INDEX.lsdf", "project.lsdf"):
                     nav_chars += file_size
                     nav_files_count += 1
@@ -707,35 +720,75 @@ def stats(path):
             except OSError:
                 pass
 
-    # Calculations
-    CHARS_PER_TOKEN = 4
-    source_tokens = int(source_chars / CHARS_PER_TOKEN)
-    nav_tokens = int(nav_chars / CHARS_PER_TOKEN)
-    detail_tokens = int(detail_chars / CHARS_PER_TOKEN)
+    source_tokens = source_chars // CHARS_PER_TOKEN
+    nav_tokens    = nav_chars    // CHARS_PER_TOKEN
+    detail_tokens = detail_chars // CHARS_PER_TOKEN
 
     if source_tokens == 0:
         click.echo("⚠️  No source code found to compare.")
         return
 
-    cost_per_million = 3.00
+    cache_read_price = price * CACHE_READ_RATIO
+    cache_write_price = price * CACHE_WRITE_RATIO
+    source_open_rate = dd + ORIENTATION_RATE
 
-    def _savings(reduced_tokens):
-        pct = (1 - reduced_tokens / source_tokens) * 100
-        saved = ((source_tokens - reduced_tokens) / 1_000_000) * cost_per_million * 50
-        return pct, saved
+    def cached_session_cost(tokens):
+        """One cache write, then turns-1 blended cache accesses."""
+        if tokens <= 0:
+            return 0.0
+        return tokens * (
+            cache_write_price
+            + max(turns - 1, 0) * (cache_write_price * (1 - cache_hit_rate) + cache_read_price * cache_hit_rate)
+        ) / 1_000_000
 
-    nav_pct, nav_saved = _savings(nav_tokens)
-    detail_pct, detail_saved = _savings(detail_tokens)
+    cost_a = turns * source_tokens * source_open_rate * price / 1_000_000
+    cost_b = source_tokens * source_open_rate * (
+        cache_write_price
+        + max(turns - 1, 0) * (cache_write_price * (1 - cache_hit_rate) + cache_read_price * cache_hit_rate)
+    ) / 1_000_000
+    cost_c = (
+        cached_session_cost(nav_tokens)
+        + cached_session_cost(detail_tokens * DETAIL_OPEN_RATE)
+        + turns * dd * DRILLDOWN_TOKENS * price / 1_000_000
+    )
+    sav_b_vs_a = (1 - cost_b / cost_a) * 100 if cost_a > 0 else 0.0
+    sav_a = (1 - cost_c / cost_a) * 100 if cost_a > 0 else 0.0
+    sav_b = (1 - cost_c / cost_b) * 100 if cost_b > 0 else 0.0
 
-    click.echo("\n📊 L-SDF ROI Report")
-    click.echo("========================================")
-    click.echo(f"Source Files:        {source_files_count:>4} files  |  {source_tokens:>9,} tokens")
-    click.echo(f"INDEX.lsdf (nav):    {nav_files_count:>4} files  |  {nav_tokens:>9,} tokens  |  {nav_pct:.1f}% reduction")
-    click.echo(f"INDEX.detail.lsdf:   {detail_files_count:>4} files  |  {detail_tokens:>9,} tokens  |  {detail_pct:.1f}% reduction")
-    click.echo("----------------------------------------")
-    click.echo(f"💰 Est. Savings (50 turns, nav only):    ${nav_saved:.2f}")
-    click.echo(f"💰 Est. Savings (50 turns, detail only): ${detail_saved:.2f}")
-    click.echo("========================================")
+    W = 60
+    click.echo("📊 L-SDF Stats")
+    click.echo("=" * W)
+    click.echo(f"Source files:       {source_files_count:>4} files  |  {source_tokens:>9,} tokens")
+    click.echo(f"INDEX.lsdf (nav):   {nav_files_count:>4} files  |  {nav_tokens:>9,} tokens")
+    click.echo(f"INDEX.detail.lsdf:  {detail_files_count:>4} files  |  {detail_tokens:>9,} tokens")
+    click.echo()
+    click.echo("  Scenario    Session Cost  Savings vs A   Savings vs B")
+    click.echo("  ───────────────────────────────────────────────────────")
+    click.echo(f"  Baseline A        ${cost_a:>4.2f}            -              -")
+    click.echo(f"  Baseline B        ${cost_b:>4.2f}         {sav_b_vs_a:>4.1f}%             -")
+    click.echo(f"  L-SDF+cache       ${cost_c:>4.2f}         {sav_a:>4.1f}%          {sav_b:>4.1f}%")
+    click.echo()
+    click.echo(f"  Session Cost: for {turns}-turn session")
+    click.echo("  Baseline A: raw source, no caching")
+    click.echo("  Baseline B: raw source, with cache")
+
+    click.echo()
+    click.echo("=" * W)
+
+    if verbose:
+        click.echo()
+        click.echo("Assumptions:")
+        click.echo(f"  Turns per session:   {turns}")
+        click.echo(f"  Chars per token:     {CHARS_PER_TOKEN}")
+        click.echo(f"  Drilldowns:          {dd*100:.0f}% of turns require uncached raw-source reads with L-SDF")
+        click.echo(f"  Detail open rate:    {DETAIL_OPEN_RATE*100:.0f}% of turns read INDEX.detail.lsdf")
+        click.echo(f"  Source overhead:     +{ORIENTATION_RATE*100:.0f}% extra uncached raw-source reads on top of drilldowns, without L-SDF")
+        click.echo(f"  Drilldown size:      {DRILLDOWN_TOKENS:,} tokens per uncached source read")
+        click.echo(f"  Cache hit rate:      {cache_hit_rate*100:.0f}%")
+        click.echo()
+        click.echo(f"  Price per M tokens:  ${price:.2f}")
+        click.echo(f"  Cache read price:    ${cache_read_price:.2f} ({CACHE_READ_RATIO*100:.0f}% of Price)")
+        click.echo(f"  Cache write price:   ${cache_write_price:.2f} ({CACHE_WRITE_RATIO*100:.0f}% of Price)")
 
 
 if __name__ == '__main__':
