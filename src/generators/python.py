@@ -271,7 +271,6 @@ class PythonGenerator:
         def append_nav(item, indent=' '):
             if isinstance(item, ast.ClassDef):
                 if _is_schema_class(item):
-                    nav_lines.append(f'{indent}?{item.name}')
                     return
                 nav_lines.append(f'{indent}@{item.name}{_bases_suffix(item)}')
                 for sub in item.body:

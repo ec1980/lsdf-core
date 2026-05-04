@@ -184,7 +184,7 @@ Project-specific aliases MAY be defined once in `project.lsdf` and referenced in
 
 ### 4.4 Schemas
 
-Schemas SHOULD appear in `INDEX.detail.lsdf`. `INDEX.lsdf` MAY reference a schema name without its body when the name alone aids navigation.
+Schemas MUST appear only in `INDEX.detail.lsdf`. `INDEX.lsdf` MUST NOT include schema entries.
 
 Prefer inline one-line schema form for compact models:
 

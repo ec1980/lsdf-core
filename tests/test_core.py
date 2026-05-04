@@ -164,8 +164,8 @@ class TestLSDF(unittest.TestCase):
                 self.assertIn(" ~package.module:Thing,helper", output)
                 self.assertNotIn("~[", output)
 
-            # Nav: schema classes use ? sigil; regular classes use @
-            self.assertIn(" ?FeatureSpec", nav)
+            # Nav: schema classes must NOT appear
+            self.assertNotIn("?FeatureSpec", nav)
             self.assertNotIn("@FeatureSpec", nav)
             self.assertIn(" @Greeter", nav)
             self.assertIn("  @Formatter", nav)
@@ -308,9 +308,9 @@ class TestLSDF(unittest.TestCase):
 
             nav, detail = PythonGenerator().generate(str(file_path))
 
-            # Schema classes use ? in nav (name only)
-            self.assertIn(" ?User", nav)
-            self.assertIn(" ?Point", nav)
+            # Schema classes must NOT appear in nav
+            self.assertNotIn("?User", nav)
+            self.assertNotIn("?Point", nav)
             self.assertNotIn("@User", nav)
             self.assertNotIn("@Point", nav)
             # Non-schema class still uses @
