@@ -128,7 +128,32 @@ Each non-blank line in an `.lsdf` file MUST begin with zero or more space charac
 
 ## 4. Syntax
 
-### 4.1 Ownership and indentation
+### 4.1 Line forms
+
+This section summarizes the canonical line forms used by generated L-SDF. Later subsections define the detailed rules for indentation, signatures, type aliases, schemas, dependencies, call edges, and continuations.
+
+```text
+^name:stack
+@entity[:role]
+!fn[(arg:type,...)][:return] [> callee,...]
+~module[,module...]
+~module:symbol[,symbol...]
+?Schema{field:type,...}
+#METHOD /path [> handler]
+$note
+$key:value
+\ continuation text
+```
+
+Whitespace inside generated line forms SHOULD be minimized. Generators SHOULD NOT emit spaces after commas in argument lists, dependency lists, schema fields, or callee lists.
+
+The bracket notation above is descriptive only:
+
+- [...] means optional syntax.
+- ... means repetition.
+- Literal list and type-alias brackets, such as [s], are part of the L-SDF type syntax.
+
+### 4.2 Ownership and indentation
 
 Indentation encodes hierarchy. A sigil indented under another is a member of it (e.g., `!` under `@` is a method of that entity).
 
@@ -142,7 +167,7 @@ depth 2 — two leading spaces (members of depth-1 entries)
 
 Parsers MUST NOT assume a fixed column for any sigil type.
 
-### 4.2 Compact signatures
+### 4.3 Compact signatures
 
 Generated L-SDF MUST use compact signatures. The following rules apply:
 
@@ -165,7 +190,7 @@ Generated L-SDF MUST use compact signatures. The following rules apply:
 !score_deal(deal:Deal,watch:Watch,cfg:Cfg):DealScore
 ```
 
-### 4.3 Type aliases
+### 4.4 Type aliases
 
 The following standard aliases MUST be used in generated L-SDF:
 
@@ -182,9 +207,9 @@ The following standard aliases MUST be used in generated L-SDF:
 | `{k:v}` | `dict[k,v]` |
 | `x?` | `optional[x]` |
 
-Project-specific aliases MAY be defined once in `project.lsdf` and referenced in all index files for that project. Arbitrary per-file aliases MUST NOT be introduced.
+Generated L-SDF MUST use only the standard aliases listed above. Arbitrary per-file aliases MUST NOT be introduced.
 
-### 4.4 Schemas
+### 4.5 Schemas
 
 Schemas MUST appear only in `INDEX.detail.lsdf`. `INDEX.lsdf` MUST NOT include schema entries.
 
@@ -203,7 +228,7 @@ Use multiline form only when the one-line form is too long to read or diff:
  active:b
 ```
 
-### 4.5 Dependencies
+### 4.6 Dependencies
 
 A single-module import is expressed as:
 
@@ -226,7 +251,7 @@ Symbols imported from a module use colon-separated form:
 
 `INDEX.lsdf` SHOULD include only dependencies that help understand architecture. `INDEX.detail.lsdf` MAY include more import detail. Low-value or obvious imports SHOULD be omitted from both.
 
-### 4.6 Call edges
+### 4.7 Call edges
 
 Generated call edges express that a function invokes or depends on other project-level functions. Callee lists use comma-separated form ordered by first appearance in the body:
 
@@ -234,7 +259,7 @@ Generated call edges express that a function invokes or depends on other project
 !caller > callee1,callee2,callee3
 ```
 
-Module-level functions are referenced by name. Methods are qualified with their class name:
+Same-file module-level functions are referenced by bare name. Methods may be qualified with their class name when that can be inferred directly from the call site:
 
 ```text
 !run > parse,Greeter.greet
@@ -268,7 +293,7 @@ Generators SHOULD omit call edges for:
 - Property access
 - Obvious validation calls
 
-### 4.7 Symbol inclusion
+### 4.8 Symbol inclusion
 
 Generators SHOULD omit symbols that do not help agent navigation. The following SHOULD be skipped by default:
 
@@ -294,9 +319,13 @@ The following SHOULD always be included:
 - Core pipeline stages
 - Functions called by many callers
 
-### 4.8 Continuations
+### 4.9 Continuations
 
-The `\` character at the start of a line denotes a continuation of the preceding block (e.g., for multi-line CLI argument lists or long descriptions).
+Each non-blank, non-continuation line in an `.lsdf` file MUST begin with zero or more space characters followed by exactly one sigil character.
+
+Continuation lines begin with `\` and inherit the semantic role and indentation depth of the preceding non-continuation line. The content after `\` is treated as a continuation of that preceding line.
+
+Parsers MUST NOT treat continuation lines as independent entries.
 
 ## 5. Generator Behaviour
 

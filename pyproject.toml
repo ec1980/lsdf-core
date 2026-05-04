@@ -4,11 +4,33 @@ build-backend = "hatchling.build"
 
 [project]
 name = "lsdf-core"
-version = "1.1.1"
-description = "Token-optimized documentation generator for AI Agents"
+version = "1.1.2"
+description = "Token-optimized documentation generator for AI coding agents"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Software Development :: Code Generators",
+]
 dependencies = [
     "click>=8.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/ec1980/lsdf-core"
+Repository = "https://github.com/ec1980/lsdf-core"
+Issues = "https://github.com/ec1980/lsdf-core/issues"
+Specification = "https://github.com/ec1980/lsdf-core/blob/main/SPEC.md"
 
 [project.scripts]
 lsdf = "src.cli:main"

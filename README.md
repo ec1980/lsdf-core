@@ -5,11 +5,10 @@ L-SDF is an **agent-first** documentation format for representing codebases in a
 
 ## The Philosophy: Agent-First vs. Human-First
 
-Standard documentation (Markdown) is "chatty" and visual. It wastes thousands of tokens on headers, prose, and formatting that AI agents must "filter out." L-SDF is designed for the Latent Space:
+Human-first documentation such as Markdown includes prose and formatting that are valuable to readers, but expensive when repeatedly loaded into AI coding sessions. L-SDF is designed for AI coding agents:
 
-* Sigils as Hard Anchors: In L-SDF, symbols like @, !, and ~ provide unambiguous anchors. The agent doesn’t "guess" if a header is a class or a title—it knows with 100% certainty.
-* KV-Cache Optimization: L-SDF fits an entire project’s architecture into a single attention window. This keeps the "Latent Map" of the repo "hot" in the model’s memory, reducing structural hallucinations.
-* Structure over Prose: Agents don’t need sentences; they need signatures, schemas, and call edges.
+* Sigils as Hard Anchors: Symbols like `@`, `!`, and `~` provide stable structural anchors. Agents and parsers do not need to infer whether a line is a class, function, dependency, or route from prose formatting.
+* Compact Context: L-SDF often fits a useful repo-level architecture map into a small context window, keeping structural context available before the agent opens source files.
 
 ## Token Economics & ROI
 
@@ -114,6 +113,8 @@ An agent navigating the repo reads `INDEX.lsdf` first. It only opens `INDEX.deta
 
 ## Quick Start
 
+> Status: Draft v1.1 format. Current generator supports Python repositories. Other language generators are welcome.
+
 ### 1. Install
 
 #### A. For Users (Global Access)
@@ -208,7 +209,7 @@ To also add a GitHub Actions workflow that auto-regenerates indices on every pus
 lsdf init --ci
 ```
 
-This adds `.github/workflows/update-lsdf.yml`. On every push it installs `lsdf-core` from PyPI, regenerates all `INDEX.lsdf` files, and commits any changes back to the branch. Requires GitHub Actions to have write permission on the repository. Re-running `lsdf init --ci` is safe — it will not overwrite an existing workflow.
+This adds `.github/workflows/update-lsdf.yml`. On every push it installs `lsdf-core` from PyPI, regenerates `INDEX.lsdf` and `INDEX.detail.lsdf` files, and commits any changes back to the branch. Requires GitHub Actions to have write permission on the repository. Re-running `lsdf init --ci` is safe — it will not overwrite an existing workflow.
 
 ### 3. Generate Indices
 
@@ -235,7 +236,7 @@ After any structural edit, the AI agent is instructed to run `lsdf gen <dir>`. Y
 **2. `lsdf sync` as an enforcement check.** Run it in CI or as a pre-commit hook:
 
 ```bash
-lsdf sync --check
+lsdf sync . --check
 ```
 
 The exit code is non-zero if any index file is out of date relative to source. Wire this into your CI’s required checks and stale indices stop reaching `main`.
@@ -303,6 +304,20 @@ In L-SDF, sigils act as single-character semantic tags. Instead of wasting token
 
 ----
 
+## Current Limitations
+
+* The current generator supports Python repositories.
+* The format is Draft v1.1 and may evolve before a stable 2.0 spec.
+* Generated call edges are structural hints, not a complete static-analysis call graph.
+
+----
+
+## License
+
+MIT
+
+----
+
 ## Contributing
 
-L-SDF is an open standard. The current generator is Python only. We welcome new generators for different languages (Go, Rust, TS.)
+L-SDF is an open standard. We welcome new generators for different languages (Go, Rust, TS.)
