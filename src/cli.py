@@ -4,7 +4,7 @@ import hashlib
 import os
 import json
 from importlib.metadata import PackageNotFoundError, version
-from .core import to_markdown, from_markdown
+from .core import to_markdown
 from .generators import get_generator
 
 def _package_version():
@@ -418,17 +418,17 @@ def gen(ctx, path, recursive, depth):
 @click.argument('file')
 @click.option('--output', '-o', help='Output file path')
 def trans(file, output):
-    """Translates between L-SDF and Markdown."""
+    """Translates L-SDF into Markdown."""
     if not os.path.exists(file):
         raise click.ClickException(f"File not found: {file}")
 
-    if not (file.endswith('.lsdf') or file.endswith('.md')):
-        raise click.ClickException("Unsupported input type. Use a .lsdf or .md file.")
+    if not file.endswith('.lsdf'):
+        raise click.ClickException("Unsupported input type. Use a .lsdf file.")
 
     with open(file, 'r') as f:
         content = f.read()
     
-    result = to_markdown(content) if file.endswith('.lsdf') else from_markdown(content)
+    result = to_markdown(content)
     
     if output:
         with open(output, 'w') as f:

@@ -11,9 +11,9 @@ The `lsdf` command line tool is the reference implementation for generating, val
 
 - `lsdf init`: Set up project and agent rules.
 - `lsdf gen`: Auto-generate indices from source.
-- `lsdf trans`: Convert to/from human-readable Markdown.
+- `lsdf trans`: Convert L-SDF into human-readable Markdown.
 - `lsdf sync`: Check for drift between source and indices.
-- `lsdf stats`: Calculate token savings.
+- `lsdf stats`: Estimate session cost and savings.
 
 ### 1. `lsdf init`
 
@@ -47,12 +47,12 @@ Scans source code to build or update `INDEX.lsdf` files.
 
 ### 3. `lsdf trans` (Translate)
 
-Converts between L-SDF and Markdown.
+Converts L-SDF into Markdown.
 
 - **Usage:** `lsdf trans <FILE>`
 - **Behavior:**
-  - If input is `.lsdf` -> outputs Markdown.
-  - If input is `.md` -> outputs L-SDF (compressed).
+  - Input must be `.lsdf`.
+  - Outputs Markdown to stdout by default.
   - Any other file type returns an error.
   - Missing input files return a non-zero exit code.
 - **Options:**

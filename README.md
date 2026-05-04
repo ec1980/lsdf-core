@@ -8,21 +8,24 @@ L-SDF is an **agent-first** documentation format for representing codebases in a
 Standard documentation (Markdown) is "chatty" and visual. It wastes thousands of tokens on headers, prose, and formatting that AI agents must "filter out." L-SDF is designed for the Latent Space:
 
 * Sigils as Hard Anchors: In L-SDF, symbols like @, !, and ~ provide unambiguous anchors. The agent doesn’t "guess" if a header is a class or a title—it knows with 100% certainty.
-* KV-Cache Optimization: L-SDF fits an entire project’s architecture into a single attention window. This keeps the "Latent Map" of the repo "hot" in the model’s memory, eliminating hallucinations.
+* KV-Cache Optimization: L-SDF fits an entire project’s architecture into a single attention window. This keeps the "Latent Map" of the repo "hot" in the model’s memory, reducing structural hallucinations.
 * Structure over Prose: Agents don’t need sentences; they need signatures, schemas, and call edges.
 
 ## Token Economics & ROI
 
-In a typical coding session, source code and project context are re-sent to the API with every message. L-SDF indexes raw source code into a compact structural map that an agent can scan first, often using one-tenth the tokens.
-
-Example from a typical Python repository with L-SDF indices:
-
-| Metric | Source Code | L-SDF Indices |
+In a typical coding session, source code and project context are re-sent to the API across many turns. L-SDF indexes raw source code into a compact structural map that an agent can scan first, often using a fraction of the tokens.
+ 
+Example from a typical Python repository (21 files, ~110K tokens of source, ~8K tokens of L-SDF indices), measured over a 50-turn session:
+ 
+| Scenario | Session Cost | Savings with L-SDF |
 | --- | --- | --- |
-| Files | 21 files | 4 files |
-| Token Count | 110,737 tokens | 9,535 tokens |
-| 50-Turn Session Cost | $16.61 | $1.43 |
-| Savings | Base | 91.4% reduction / $15.18 saved |
+| Source code, no caching | $5.81 | 90% |
+| Source code, with prompt caching | $2.03 | 71% |
+| **L-SDF indices + caching** | **$0.59** | — |
+ 
+Modern agents (Claude Code, Cursor, Copilot) use prompt caching, so the middle row is the realistic baseline — **L-SDF still cuts costs by roughly 2.5× on top of caching.** The first row is the upper bound for environments without caching.
+
+> **Assumptions:** Claude Sonnet input pricing ($3/M tokens, $0.30/M cached read, $3.75/M cache write); 80% prompt-cache hit rate; 20% of turns drill into source for ~10K uncached tokens with L-SDF; and without L-SDF, agents incur an additional 15% raw-source orientation overhead on top of drilldowns. Output tokens identical across scenarios and excluded. Numbers vary with repo size, agent behavior, and model choice.
 
 ----
 
@@ -214,8 +217,30 @@ lsdf gen . --recursive
 ```
 
 > Run `lsdf stats` after your first generation to see exactly how much you're saving on your next AI coding session.
->
-> Run `lsdf sync` to verify that indices match the current source code.
+
+----
+
+## Index Drift and Sync
+
+A stale index is worse than no index. If an agent trusts an out-of-date index, it can generate code against the wrong signatures just as confidently as if they were correct. Drift is the failure mode you have to design against.
+
+L-SDF gives you three layers of defense:
+
+**1. Auto-regeneration after each structural edit.**
+
+After any structural edit, the AI agent is instructed to run `lsdf gen <dir>`. You should do the same when making structural edits manually.
+
+**2. `lsdf sync` as an enforcement check.** Run it in CI or as a pre-commit hook:
+
+```bash
+lsdf sync --check
+```
+
+The exit code is non-zero if any index file is out of date relative to source. Wire this into your CI’s required checks and stale indices stop reaching `main`.
+
+**3. Auto-regeneration on each push via `lsdf init --ci`.**
+
+This gives you the strongest enforcement, but it requires write permissions on the branch and may create noisy history. Use it in repos where index accuracy matters more than a perfectly clean commit log.
 
 ----
 
@@ -237,7 +262,8 @@ You can compare agent behavior with and without LSDF guidance.
 
 #### Suggested Prompt
 
-> Count the number of public functions in the src dir that has no return value, with and without using LSDF files. Compare the answers, show the number of files opened and tokens used in both cases.
+> Count the number of public functions in the src dir that has no return value, with and without using LSDF files. Show the number of files opened and tokens used in both cases.
+
 
 ----
 
@@ -266,8 +292,8 @@ In L-SDF, sigils act as single-character semantic tags. Instead of wasting token
 * `lsdf init`: Bootstrap a repo for L-SDF.
 * `lsdf gen`: Generate or update `INDEX.lsdf` and `INDEX.detail.lsdf` from source code.
 * `lsdf sync`: Verify that indices match the current source code.
-* `lsdf trans`: Translate `.lsdf` to Markdown or `.md` to L-SDF.
-* `lsdf stats`: Calculate your token ROI and savings.
+* `lsdf trans`: Translate `.lsdf` to Markdown.
+* `lsdf stats`: Estimate session cost and savings.
 
 > See `docs/CLI.md` for more details.
 
@@ -275,4 +301,4 @@ In L-SDF, sigils act as single-character semantic tags. Instead of wasting token
 
 ## Contributing
 
-L-SDF is an open standard. We welcome new Generators for different languages (Go, Rust, TS).
+L-SDF is an open standard. The current generator is Python only. We welcome new generators for different languages (Go, Rust, TS.)
