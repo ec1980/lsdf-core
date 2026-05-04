@@ -85,20 +85,52 @@ class TestLSDF(unittest.TestCase):
     def test_to_markdown_inline_schema(self):
         md = to_markdown("?User{id:u,email:s,active:b}")
         self.assertIn("#### Schema: User", md)
-        self.assertIn("  - `id:u`", md)
-        self.assertIn("  - `email:s`", md)
-        self.assertIn("  - `active:b`", md)
+        self.assertIn("  - `id: uuid`", md)
+        self.assertIn("  - `email: str`", md)
+        self.assertIn("  - `active: bool`", md)
 
     def test_to_markdown_inline_schema_nested(self):
         md = to_markdown(" ?Token{value:s,expires:i}")
         self.assertIn("- **Schema:** Token", md)
-        self.assertIn("`value:s`", md)
+        self.assertIn("`value: str`", md)
 
     def test_to_markdown_schema_field_lines(self):
         md = to_markdown("?User\n ?id:u\n ?email:s")
         self.assertIn("#### Schema: User", md)
-        self.assertIn("  - **Schema:** id:u", md)
-        self.assertIn("  - **Schema:** email:s", md)
+        self.assertIn("  - **Field:** id: uuid", md)
+        self.assertIn("  - **Field:** email: str", md)
+
+    def test_expand_type_aliases(self):
+        from src.core import _expand_type
+        self.assertEqual(_expand_type('s'), 'str')
+        self.assertEqual(_expand_type('i'), 'int')
+        self.assertEqual(_expand_type('f'), 'float')
+        self.assertEqual(_expand_type('b'), 'bool')
+        self.assertEqual(_expand_type('u'), 'uuid')
+        self.assertEqual(_expand_type('[s]'), 'list[str]')
+        self.assertEqual(_expand_type('{s:i}'), 'dict[str, int]')
+        self.assertEqual(_expand_type('b?'), 'Optional[bool]')
+        self.assertEqual(_expand_type('[s]?'), 'Optional[list[str]]')
+        self.assertEqual(_expand_type('{s:s}?'), 'Optional[dict[str, str]]')
+        self.assertEqual(_expand_type('date?'), 'Optional[date]')
+        self.assertEqual(_expand_type('date'), 'date')
+
+    def test_to_markdown_schema_field_expanded_types(self):
+        lsdf = (
+            "?DealDerived\n"
+            " ?departure_date:date?\n"
+            " ?is_roundtrip:b?\n"
+            " ?available_cabin_classes:[s]\n"
+            " ?selected_offer:{s:s}?\n"
+            " ?display_price_now:f?\n"
+        )
+        md = to_markdown(lsdf)
+        self.assertIn("#### Schema: DealDerived", md)
+        self.assertIn("**Field:** departure_date: Optional[date]", md)
+        self.assertIn("**Field:** is_roundtrip: Optional[bool]", md)
+        self.assertIn("**Field:** available_cabin_classes: list[str]", md)
+        self.assertIn("**Field:** selected_offer: Optional[dict[str, str]]", md)
+        self.assertIn("**Field:** display_price_now: Optional[float]", md)
 
     def test_to_markdown_imports_with_symbols(self):
         md = to_markdown("~pydantic:BaseModel,Field")

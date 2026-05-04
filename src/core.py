@@ -2,6 +2,32 @@ import re
 
 SIGILS = {'^': 'Project', '@': 'Entity', '!': 'Function', '~': 'Deps', '?': 'Schema', '$': 'Annotation', '#': 'Route'}
 
+_TYPE_EXPANSION = {'s': 'str', 'i': 'int', 'f': 'float', 'b': 'bool', 'u': 'uuid'}
+
+
+def _expand_type(compact):
+    """Recursively expand a compact L-SDF type alias to its full Python form."""
+    if not compact:
+        return compact
+    if compact.endswith('?'):
+        return f'Optional[{_expand_type(compact[:-1])}]'
+    if compact.startswith('[') and compact.endswith(']'):
+        return f'list[{_expand_type(compact[1:-1])}]'
+    if compact.startswith('{') and compact.endswith('}'):
+        inner = compact[1:-1]
+        colon = inner.find(':')
+        if colon != -1:
+            return f'dict[{_expand_type(inner[:colon])}, {_expand_type(inner[colon + 1:])}]'
+    return _TYPE_EXPANSION.get(compact, compact)
+
+
+def _expand_field(field_str):
+    """Expand 'name:compacttype' to 'name: FullType'. Returns unchanged if no colon."""
+    if ':' not in field_str:
+        return field_str
+    name, _, type_compact = field_str.partition(':')
+    return f'{name.strip()}: {_expand_type(type_compact.strip())}'
+
 
 def _entity_label(content):
     if content.startswith("INDEX:"):
@@ -83,7 +109,7 @@ def to_markdown(lsdf_content):
             if brace_match:
                 # Inline schema: ?Name{field:type,...}
                 schema_name = brace_match.group(1)
-                fields = [f.strip() for f in brace_match.group(2).split(',')]
+                fields = [_expand_field(f.strip()) for f in brace_match.group(2).split(',')]
                 if indent:
                     md.append(f"{indent}- **Schema:** {schema_name}")
                     for field in fields:
@@ -92,8 +118,15 @@ def to_markdown(lsdf_content):
                     md.append(f"#### Schema: {schema_name}")
                     for field in fields:
                         md.append(f"  - `{field}`")
+            elif ':' in content:
+                # Schema field line: ?name:type
+                expanded = _expand_field(content)
+                if indent:
+                    md.append(f"{indent}- **Field:** {expanded}")
+                else:
+                    md.append(f"**Field:** {expanded}")
             else:
-                # Schema name or field line
+                # Schema name only
                 if indent:
                     md.append(f"{indent}- **Schema:** {content}")
                 else:
