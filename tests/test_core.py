@@ -85,20 +85,20 @@ class TestLSDF(unittest.TestCase):
     def test_to_markdown_inline_schema(self):
         md = to_markdown("?User{id:u,email:s,active:b}")
         self.assertIn("#### Schema: User", md)
-        self.assertIn("  - **Field:** id: uuid", md)
-        self.assertIn("  - **Field:** email: str", md)
-        self.assertIn("  - **Field:** active: bool", md)
+        self.assertIn("  - id: uuid", md)
+        self.assertIn("  - email: str", md)
+        self.assertIn("  - active: bool", md)
 
     def test_to_markdown_inline_schema_nested(self):
         md = to_markdown(" ?Token{value:s,expires:i}")
         self.assertIn("- **Schema:** Token", md)
-        self.assertIn("**Field:** value: str", md)
+        self.assertIn("value: str", md)
 
     def test_to_markdown_schema_field_lines(self):
         md = to_markdown("?User\n ?id:u\n ?email:s")
         self.assertIn("#### Schema: User", md)
-        self.assertIn("  - **Field:** id: uuid", md)
-        self.assertIn("  - **Field:** email: str", md)
+        self.assertIn("  - id: uuid", md)
+        self.assertIn("  - email: str", md)
 
     def test_expand_type_aliases(self):
         from src.core import _expand_type
@@ -126,11 +126,11 @@ class TestLSDF(unittest.TestCase):
         )
         md = to_markdown(lsdf)
         self.assertIn("#### Schema: DealDerived", md)
-        self.assertIn("**Field:** departure_date: Optional[date]", md)
-        self.assertIn("**Field:** is_roundtrip: Optional[bool]", md)
-        self.assertIn("**Field:** available_cabin_classes: list[str]", md)
-        self.assertIn("**Field:** selected_offer: Optional[dict[str, str]]", md)
-        self.assertIn("**Field:** display_price_now: Optional[float]", md)
+        self.assertIn("departure_date: Optional[date]", md)
+        self.assertIn("is_roundtrip: Optional[bool]", md)
+        self.assertIn("available_cabin_classes: list[str]", md)
+        self.assertIn("selected_offer: Optional[dict[str, str]]", md)
+        self.assertIn("display_price_now: Optional[float]", md)
 
     def test_to_markdown_imports_with_symbols(self):
         md = to_markdown("~pydantic:BaseModel,Field")

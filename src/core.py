@@ -113,18 +113,18 @@ def to_markdown(lsdf_content):
                 if indent:
                     md.append(f"{indent}- **Schema:** {schema_name}")
                     for field in fields:
-                        md.append(f"{indent}  - **Field:** {field}")
+                        md.append(f"{indent}  - {field}")
                 else:
                     md.append(f"#### Schema: {schema_name}")
                     for field in fields:
-                        md.append(f"  - **Field:** {field}")
+                        md.append(f"  - {field}")
             elif ':' in content:
                 # Schema field line: ?name:type
                 expanded = _expand_field(content)
                 if indent:
-                    md.append(f"{indent}- **Field:** {expanded}")
+                    md.append(f"{indent}  - {expanded}")
                 else:
-                    md.append(f"**Field:** {expanded}")
+                    md.append(f"  - {expanded}")
             else:
                 # Schema name only
                 if indent:
