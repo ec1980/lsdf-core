@@ -1,0 +1,7 @@
+@hello.py
+ ~sys
+ @Greeter
+  !say_hello(name:s):s
+  !greet(names:[s]):[s] > say_hello
+ !parse(argv:[s]):[s]
+ !run > Greeter.greet,parse
