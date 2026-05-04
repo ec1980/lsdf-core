@@ -296,6 +296,38 @@ def _read_project_lsdf_version(project_lsdf_path):
     return "1.0.0"
 
 
+def _read_entry_points(project_root):
+    """Read [project.scripts] entry points from pyproject.toml.
+    Returns a list of '!name=module:function' strings.
+    """
+    pyproject_path = os.path.join(project_root, "pyproject.toml")
+    if not os.path.exists(pyproject_path):
+        return []
+    try:
+        with open(pyproject_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except OSError:
+        return []
+
+    entries = []
+    in_scripts = False
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped == "[project.scripts]":
+            in_scripts = True
+            continue
+        if in_scripts:
+            if stripped.startswith("["):
+                break
+            if "=" in stripped and not stripped.startswith("#"):
+                name, _, target = stripped.partition("=")
+                name = name.strip()
+                target = target.strip().strip('"').strip("'")
+                if name and target:
+                    entries.append(f"!{name}={target}")
+    return entries
+
+
 def _build_project_manifest(project_root):
     project_name = os.path.basename(os.path.abspath(project_root))
     stack = ",".join(_detect_stack_markers(project_root))
@@ -307,6 +339,9 @@ def _build_project_manifest(project_root):
     frameworks = _detect_frameworks_and_deps(project_root)
     if frameworks:
         lines.append(" ~[" + ",".join(frameworks) + "]")
+
+    for ep in _read_entry_points(project_root):
+        lines.append(f" {ep}")
 
     lines.append(f"$lsdf:{_package_version()}")
 

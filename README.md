@@ -177,7 +177,9 @@ This creates:
     @scripts:automation
     @src:main-code
     @tests:test-suite
-    ~Pydantic,Pytest
+    ~[Pydantic,Pytest]
+    !myapp=src.cli:main
+   $lsdf:1.1.0
    ```
 
 * `.lsdf/lsdf_instructions.md`: The protocol instruction for AI agents — loaded into agent config files automatically.
@@ -205,7 +207,7 @@ This adds `.github/workflows/update-lsdf.yml`. On every push it installs `lsdf-c
 
 ### 3. Generate Indices
 
-Scan your source code to generate or update `INDEX.lsdf` maps in your source directories.
+Scan your source code to generate or update `INDEX.lsdf` and `INDEX.detail.lsdf` maps in your source directories.
 
 ```bash
 lsdf gen . --recursive

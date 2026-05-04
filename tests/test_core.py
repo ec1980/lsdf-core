@@ -581,6 +581,24 @@ class TestCLI(unittest.TestCase):
                 self.assertIn(".vscode\n", ignore_text)
                 self.assertIn(".github\n", ignore_text)
 
+    def test_init_includes_entry_points_in_manifest(self):
+        with TemporaryDirectory() as tmpdir:
+            with self.runner.isolated_filesystem(temp_dir=tmpdir):
+                Path("pyproject.toml").write_text(
+                    "[project]\nname = 'demo'\n\n"
+                    "[project.scripts]\n"
+                    'demo = "src.cli:main"\n'
+                    'demo-worker = "src.worker:run"\n',
+                    encoding="utf-8",
+                )
+
+                result = self.runner.invoke(self.main, ["init"])
+                self.assertEqual(result.exit_code, 0, result.output)
+
+                project_lsdf = Path("project.lsdf").read_text(encoding="utf-8")
+                self.assertIn(" !demo=src.cli:main", project_lsdf)
+                self.assertIn(" !demo-worker=src.worker:run", project_lsdf)
+
     def test_init_builds_project_manifest_from_repo_structure(self):
         with TemporaryDirectory() as tmpdir:
             with self.runner.isolated_filesystem(temp_dir=tmpdir):

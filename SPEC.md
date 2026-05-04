@@ -55,7 +55,25 @@ The intended agent workflow is:
 
 Generators MUST produce both `INDEX.lsdf` and `INDEX.detail.lsdf` by default.
 
-### 2.3 Machine metadata
+### 2.3 Project manifest format
+
+`project.lsdf` captures the top-level structure of a repository. A generator SHOULD populate it with the following fields:
+
+```text
+^name:stack
+ @dir:role
+ ~[Framework1,Framework2]
+ !cmd=module:function
+$lsdf:version
+```
+
+- `^name:stack` — project name and detected language stack (e.g. `Python`, `Node`, `Go`).
+- `@dir:role` — one line per significant top-level directory with a role label (e.g. `main-code`, `test-suite`, `documentation`).
+- `~[...]` — major frameworks and libraries detected from dependency files.
+- `!cmd=module:function` — CLI entry points from `[project.scripts]` (or equivalent). One line per command.
+- `$lsdf:version` — the lsdf-core version that generated this file. Used by `lsdf init` to detect when an upgrade is needed.
+
+### 2.4 Machine metadata
 
 Generators SHOULD write machine metadata under `.lsdf/` for tooling use:
 
