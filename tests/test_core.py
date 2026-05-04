@@ -85,14 +85,14 @@ class TestLSDF(unittest.TestCase):
     def test_to_markdown_inline_schema(self):
         md = to_markdown("?User{id:u,email:s,active:b}")
         self.assertIn("#### Schema: User", md)
-        self.assertIn("  - `id: uuid`", md)
-        self.assertIn("  - `email: str`", md)
-        self.assertIn("  - `active: bool`", md)
+        self.assertIn("  - **Field:** id: uuid", md)
+        self.assertIn("  - **Field:** email: str", md)
+        self.assertIn("  - **Field:** active: bool", md)
 
     def test_to_markdown_inline_schema_nested(self):
         md = to_markdown(" ?Token{value:s,expires:i}")
         self.assertIn("- **Schema:** Token", md)
-        self.assertIn("`value: str`", md)
+        self.assertIn("**Field:** value: str", md)
 
     def test_to_markdown_schema_field_lines(self):
         md = to_markdown("?User\n ?id:u\n ?email:s")
