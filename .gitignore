@@ -12,5 +12,7 @@ venv/
 .codex/
 .codex
 .lsdf/
+*.lsdf
+!examples/**/*.lsdf
 AGENTS.md
 CLAUDE.md

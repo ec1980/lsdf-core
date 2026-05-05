@@ -1,5 +1,0 @@
-@python.py
- ~ast,os
- @PythonGenerator
-  $Parse a Python file and return (nav_content, detail_content).
-  !generate(file_path) > _emit_import_lines,_alias_annotation,_is_schema_class,_extract_leading_comments,_extract_short_docstring,_collect_callees
