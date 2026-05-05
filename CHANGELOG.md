@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.1.4 - 2026-05-05
+
+### Fixed
+
+- `lsdf init` no longer prints a "Template source not found" warning when installed via pipx or pip (non-editable). Templates are now packaged inside `src/_templates/` so they are included in the wheel and accessible at runtime regardless of install mode.
+
 ## 1.1.3 - 2026-05-05
 
 ### Changed

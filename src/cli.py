@@ -486,8 +486,10 @@ def init(ci):
     target_lsdf_dir = Path(".lsdf")
     target_lsdf_dir.mkdir(exist_ok=True)
 
-    # 2. Locate the SOURCE templates inside the installed package
-    source_dir = Path(__file__).parent.parent / ".lsdf"
+    # 2. Locate the SOURCE templates inside the installed package.
+    # _templates/ sits alongside cli.py so it's included in the wheel;
+    # the repo-root .lsdf/ only works for editable installs.
+    source_dir = Path(__file__).parent / "_templates"
 
     # 3. Detect version for upgrade/downgrade check
     current_version = _package_version()
