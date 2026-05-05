@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.1.3 - 2026-05-05
+
+### Changed
+
+- Tightened `lsdf gen` annotation extraction so leading comments and docstring first lines longer than 80 characters are omitted from `INDEX.detail.lsdf`.
+- Kept annotation extraction deterministic and spec-aligned by preserving concise high-value comments and short class/function docstrings without adding generation flags.
+- Refreshed the Hello World example and README to use a more typical small source file, updated the generated index examples, and clarified that module docstrings are not extracted into detail indices.
+
 ## 1.1.2 - 2026-05-04
 
 ### Changed
