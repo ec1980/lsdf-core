@@ -33,19 +33,19 @@ Modern agents (Claude Code, Cursor, Copilot) use prompt caching, so the middle r
 Here is what L-SDF does to a typical Python file. Given `examples/helloworld/hello.py`:
 
 ```python
+"""Minimal hello-world CLI example.
+
+Usage:
+- Call `Greeter().say_hello(name)` to greet one name and return the message.
+- Call `Greeter().greet(names)` to greet a list of non-empty names in order.
+- Call `run()` to parse command-line arguments and execute the CLI flow.
+"""
 import sys
 
-# Default greeting target when no argument is provided.
 DEFAULT_NAME = "World"
 
 class Greeter:
-    """Sends personalised greetings to one or more named targets."""
-
     def say_hello(self, name: str) -> str:
-        """Greet a single person and return the formatted message.
-        Raises:
-            ValueError: If name is an empty string.
-        """
         if not name:
             raise ValueError("Name must not be empty")
         message = f"Hello, {name}!"
@@ -53,21 +53,13 @@ class Greeter:
         return message
 
     def greet(self, names: list[str]) -> list[str]:
-        """Greet every non-empty name in the list in order.
-        Empty strings are silently skipped.
-        Returns a list of the formatted greeting messages.
-        """
         return [self.say_hello(n) for n in names if n.strip()]
 
 def parse(argv: list[str]) -> list[str]:
-    """Return the list of names from argv, defaulting to [DEFAULT_NAME].
-    Strips whitespace from each argument and drops any blank strings.
-    """
     names = [a.strip() for a in argv if a.strip()]
     return names if names else [DEFAULT_NAME]
 
 def run() -> None:
-    """Entry point: parse CLI args and greet each name in order."""
     Greeter().greet(parse(sys.argv[1:]))
 
 if __name__ == "__main__":
@@ -93,24 +85,21 @@ Running `lsdf gen examples/helloworld` produces two index files.
 ```text
 @hello.py
  ~sys
- $Sends personalised greetings to one or more named targets.
  @Greeter
-  $Greet a single person and return the formatted message.
   !say_hello(name:s):s
-  $Greet every non-empty name in the list in order.
   !greet(names:[s]):[s] > say_hello
- $Return the list of names from argv, defaulting to [DEFAULT_NAME].
  !parse(argv:[s]):[s]
- $Entry point: parse CLI args and greet each name in order.
  !run > Greeter.greet,parse
 ```
 
-`INDEX.lsdf` keeps only the navigation skeleton. `INDEX.detail.lsdf` adds compact signatures, high-value docstring/comment annotations, and call edges while still omitting implementation bodies. `self` is omitted, `()` is omitted for zero-argument functions, and standard type aliases replace verbose names (`s`=str, `a`=Any, `[s]`=list[str], `q[s]`=Sequence[str], `l[...]`=Literal[...]).
+`INDEX.lsdf` keeps only the navigation skeleton. `INDEX.detail.lsdf` adds compact signatures and call edges while still omitting implementation bodies. Module docstrings are not extracted into detail indices, so high-level usage notes can stay in the source file without bloating the agent-facing view. `self` is omitted, `()` is omitted for zero-argument functions, and standard type aliases replace verbose names (`s`=str, `a`=Any, `[s]`=list[str], `q[s]`=Sequence[str], `l[...]`=Literal[...]).
 
 | | Source (`hello.py`) | `INDEX.lsdf` | `INDEX.detail.lsdf` |
 | --- | --- | --- | --- |
-| Tokens | ~320 | ~15 | ~30 |
-| Savings | — | **~20× fewer** | **~10× fewer** |
+| Tokens | ~221 | ~15 | ~34 |
+| Savings | — | **~15× fewer** | **~6.5× fewer** |
+
+This example uses a very small source file, so the detail index has less room to compress. In a more typical repository, L-SDF index files are often about 10-20x smaller than the source they summarize.
 
 An agent navigating the repo reads `INDEX.lsdf` first. It only opens `INDEX.detail.lsdf` when it needs signatures or call edges, and opens `hello.py` only when it needs the implementation body.
 

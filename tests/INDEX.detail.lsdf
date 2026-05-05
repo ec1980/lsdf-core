@@ -43,6 +43,7 @@
   !test_python_generator_compact_import_syntax
   !test_python_generator_extracts_routes_from_decorators
   !test_python_generator_extracts_leading_single_line_comments_into_detail
+  !test_python_generator_omits_overlong_annotations
   !test_python_generator_type_aliases
   !test_python_generator_call_edges
   !test_python_generator_inline_schema
@@ -76,5 +77,4 @@
   !test_init_refreshes_existing_project_manifest
   !test_init_uses_environment_yml_as_optional_dependency_hint
   !test_init_uses_dockerfile_as_optional_framework_hint
-  $meta.json must land at the project root even when gen is invoked on a subdirectory.
   !test_gen_writes_meta_at_project_root_not_subdir

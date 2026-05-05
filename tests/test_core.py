@@ -469,6 +469,24 @@ class TestLSDF(unittest.TestCase):
             self.assertIn(" !run", detail)
             self.assertIn(" @Greeter", detail)
 
+    def test_python_generator_omits_overlong_annotations(self):
+        with TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "sample.py"
+            long_comment = "A" * 81
+            long_doc = "B" * 81
+            file_path.write_text(
+                f"# {long_comment}\n"
+                "def run():\n"
+                f'    """{long_doc}"""\n'
+                "    return 1\n",
+                encoding="utf-8",
+            )
+
+            _, detail = PythonGenerator().generate(str(file_path))
+            self.assertNotIn(long_comment, detail)
+            self.assertNotIn(long_doc, detail)
+            self.assertIn(" !run", detail)
+
     def test_python_generator_type_aliases(self):
         with TemporaryDirectory() as tmpdir:
             file_path = Path(tmpdir) / "sample.py"

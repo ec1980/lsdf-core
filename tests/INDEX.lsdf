@@ -38,6 +38,7 @@
   !test_python_generator_compact_import_syntax
   !test_python_generator_extracts_routes_from_decorators
   !test_python_generator_extracts_leading_single_line_comments_into_detail
+  !test_python_generator_omits_overlong_annotations
   !test_python_generator_type_aliases
   !test_python_generator_call_edges
   !test_python_generator_inline_schema

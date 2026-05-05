@@ -126,6 +126,7 @@ SCHEMA_BASES = frozenset({
 })
 
 SCHEMA_LINE_BUDGET = 80
+ANNOTATION_LINE_MAX = 80
 
 
 def _is_schema_class(item):
@@ -201,7 +202,9 @@ def _extract_leading_comments(source_lines, node):
         if stripped.startswith('#!') or 'coding:' in stripped:
             i -= 1
             continue
-        comments.append(stripped[1:].strip())
+        comment = stripped[1:].strip()
+        if len(comment) <= ANNOTATION_LINE_MAX:
+            comments.append(comment)
         i -= 1
     comments.reverse()
     return [comment for comment in comments if comment]
@@ -215,7 +218,7 @@ def _extract_short_docstring(node):
     first_line = doc.splitlines()[0].strip()
     if not first_line:
         return None
-    if len(first_line) > 120:
+    if len(first_line) > ANNOTATION_LINE_MAX:
         return None
     return first_line
 
