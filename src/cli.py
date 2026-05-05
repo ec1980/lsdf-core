@@ -822,7 +822,7 @@ def stats(path, price, turns, cache_hit_rate, dd, verbose):
     sav_b = (1 - cost_c / cost_b) * 100 if cost_b > 0 else 0.0
 
     W = 60
-    click.echo("📊 L-SDF Stats")
+    click.echo("📊 L-SDF ROI Report")
     click.echo("=" * W)
     click.echo(f"Source files:       {source_files_count:>4} files  |  {source_tokens:>9,} tokens")
     click.echo(f"INDEX.lsdf (nav):   {nav_files_count:>4} files  |  {nav_tokens:>9,} tokens")

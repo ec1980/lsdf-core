@@ -12,3 +12,5 @@ venv/
 .codex/
 .codex
 .lsdf/meta.json
+AGENTS.md
+CLAUDE.md
