@@ -1132,6 +1132,22 @@ class TestCLI(unittest.TestCase):
                 self.assertIn(" @app:application", project_lsdf)
                 self.assertIn(" ~[FastAPI]", project_lsdf)
 
+    def test_init_templates_dir_is_accessible_at_runtime(self):
+        import src.cli as cli_module
+        templates = Path(cli_module.__file__).parent / "_templates"
+        self.assertTrue(templates.is_dir(), "_templates/ must exist alongside cli.py")
+        for name in ("lsdf_spec.md", "update-lsdf.yml", "lsdf_instructions.md"):
+            self.assertTrue((templates / name).exists(), f"_templates/{name} is missing")
+
+    def test_init_copies_templates_without_warning(self):
+        with TemporaryDirectory() as tmpdir:
+            with self.runner.isolated_filesystem(temp_dir=tmpdir):
+                result = self.runner.invoke(self.main, ["init"])
+                self.assertEqual(result.exit_code, 0, result.output)
+                self.assertNotIn("Template source not found", result.output)
+                self.assertTrue(Path(".lsdf/lsdf_spec.md").exists())
+                self.assertTrue(Path(".lsdf/lsdf_instructions.md").exists())
+
     def test_gen_writes_meta_at_project_root_not_subdir(self):
         """meta.json must land at the project root even when gen is invoked on a subdirectory."""
         import json
