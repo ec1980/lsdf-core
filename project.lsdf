@@ -1,7 +1,0 @@
-^lsdf-core:Python
- @docs:documentation
- @src:main-code
- @tests:test-suite
- ~[Pytest,Click]
- !lsdf=src.cli:main
-$lsdf:1.1.2

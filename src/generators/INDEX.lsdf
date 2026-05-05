@@ -1,4 +1,0 @@
-@python.py
- ~ast,os
- @PythonGenerator
-  !generate
