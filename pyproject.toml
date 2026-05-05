@@ -39,5 +39,3 @@ lsdf = "src.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
-# Includes the .lsdf folder in the distribution
-artifacts = [".lsdf"]
