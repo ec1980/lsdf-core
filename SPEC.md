@@ -123,8 +123,8 @@ Each non-blank, non-continuation line in an `.lsdf` file MUST begin with zero or
 | `!` | **Function** | Function, method, or logic flow. |
 | `~` | **Dependency** | Imports and external requirements. |
 | `?` | **Schema** | Data types and shapes. |
-| `$` | **Annotation** | Comments, notes, caveats, or rationale. |
-| `#` | **Route** | API endpoints (HTTP/RPC). |
+| `$` | **Annotation** | Comments, short docstrings, notes, caveats, or rationale. |
+| `#` | **Route** | HTTP API endpoints or URL paths. |
 
 ## 4. Syntax
 
@@ -349,7 +349,7 @@ Generated L-SDF MUST always be compact. There is no generated verbose mode. More
 
 ### 5.2 Default output
 
-Running `lsdf gen` on a directory MUST produce both `INDEX.lsdf` and `INDEX.detail.lsdf`. Selected high-value comments SHOULD be included in `INDEX.detail.lsdf` as compact `$` annotations.
+Running `lsdf gen` on a directory MUST produce both `INDEX.lsdf` and `INDEX.detail.lsdf`. Selected high-value comments and short docstrings SHOULD be included in `INDEX.detail.lsdf` as compact `$` annotations.
 
 Generators SHOULD minimise optional flags that change detail output. Fewer generation modes means simpler agent instructions and more predictable diffs.
 

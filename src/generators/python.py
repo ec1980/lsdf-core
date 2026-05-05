@@ -183,6 +183,43 @@ def _collect_callees(func_node, known_functions, known_classes, in_class=None):
     return callees
 
 
+def _extract_leading_comments(source_lines, node):
+    """Return contiguous single-line comments immediately above a node."""
+    start_lineno = node.lineno
+    decorators = getattr(node, "decorator_list", None) or []
+    if decorators:
+        start_lineno = min([start_lineno] + [dec.lineno for dec in decorators if hasattr(dec, "lineno")])
+
+    comments = []
+    i = start_lineno - 2  # convert to 0-based and move above the node
+    while i >= 0:
+        stripped = source_lines[i].strip()
+        if not stripped:
+            break
+        if not stripped.startswith('#'):
+            break
+        if stripped.startswith('#!') or 'coding:' in stripped:
+            i -= 1
+            continue
+        comments.append(stripped[1:].strip())
+        i -= 1
+    comments.reverse()
+    return [comment for comment in comments if comment]
+
+
+def _extract_short_docstring(node):
+    """Return a compact first-line docstring annotation when useful."""
+    doc = ast.get_docstring(node, clean=True)
+    if not doc:
+        return None
+    first_line = doc.splitlines()[0].strip()
+    if not first_line:
+        return None
+    if len(first_line) > 120:
+        return None
+    return first_line
+
+
 class PythonGenerator:
     def generate(self, file_path):
         """Parse a Python file and return (nav_content, detail_content).
@@ -194,6 +231,7 @@ class PythonGenerator:
             tree = ast.parse(source)
         except Exception:
             return None, None
+        source_lines = source.splitlines()
 
         basename = os.path.basename(file_path)
         if basename == '__init__.py':
@@ -318,6 +356,11 @@ class PythonGenerator:
         def append_detail(item, indent=' ', in_class=None):
             if isinstance(item, ast.ClassDef):
                 if _is_schema_class(item):
+                    for comment in _extract_leading_comments(source_lines, item):
+                        detail_lines.append(f'{indent}${comment}')
+                    doc = _extract_short_docstring(item)
+                    if doc:
+                        detail_lines.append(f'{indent}${doc}')
                     fields = []
                     for sub in item.body:
                         if isinstance(sub, ast.AnnAssign) and isinstance(sub.target, ast.Name):
@@ -334,9 +377,16 @@ class PythonGenerator:
                             for field in fields:
                                 detail_lines.append(f'{indent} ?{field}')
                     return
+                for comment in _extract_leading_comments(source_lines, item):
+                    detail_lines.append(f'{indent}${comment}')
+                doc = _extract_short_docstring(item)
+                if doc:
+                    detail_lines.append(f'{indent}${doc}')
                 detail_lines.append(f'{indent}@{item.name}{_bases_suffix(item)}')
                 for sub in item.body:
                     if isinstance(sub, ast.AnnAssign) and isinstance(sub.target, ast.Name):
+                        for comment in _extract_leading_comments(source_lines, sub):
+                            detail_lines.append(f'{indent} ${comment}')
                         ann = _alias_annotation(sub.annotation) if sub.annotation else None
                         detail_lines.append(
                             f'{indent} ?{sub.target.id}:{ann}' if ann
@@ -350,6 +400,11 @@ class PythonGenerator:
             elif isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 if _should_skip(item):
                     return
+                for comment in _extract_leading_comments(source_lines, item):
+                    detail_lines.append(f'{indent}${comment}')
+                doc = _extract_short_docstring(item)
+                if doc:
+                    detail_lines.append(f'{indent}${doc}')
                 args = _compact_args(item)
                 ret = _compact_ret(item)
                 arg_part = f"({','.join(args)})" if args else ''

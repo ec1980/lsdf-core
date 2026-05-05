@@ -1,17 +1,4 @@
-@INDEX:generators
-@__init__.py
- ~[python.PythonGenerator]
- !get_generator(file_path)
 @python.py
- ~[ast, os, io, tokenize]
- !_collapse_imports(direct_imports, from_imports)
+ ~ast,os
  @PythonGenerator
-  !generate(self, file_path, include_comments)
-   !get_ret(func_node)
-   !get_annotation(annotation_node)
-   !get_args(func_node)
-    !format_arg(arg_node, prefix)
-   !get_docstring(node)
-   !get_routes(func_node)
-   !append_node(item, indent)
-  !_extract_single_line_comments(self, source)
+  !generate

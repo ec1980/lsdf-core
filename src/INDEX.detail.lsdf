@@ -1,0 +1,23 @@
+@cli.py
+ ~click,datetime,hashlib,os,json
+ ~core:to_markdown
+ ~generators:get_generator
+ ~importlib.metadata:PackageNotFoundError,version
+ $L-SDF: The Agent-First Documentation Tool.
+ !main(ctx,verbose) > _package_version
+ $Scans source code to generate .lsdf indices.
+ !gen(ctx,path,recursive,depth) > _find_project_root,_load_lsdfignore,_read_meta,_package_version,_iter_walk_roots,_is_ignored_path,_build_index_content,_combined_source_hash,_hash_str,_write_meta
+ $Translates L-SDF into Markdown.
+ !trans(file,output)
+ $Bootstraps a repository with L-SDF config and agent rules.
+ !init(ci) > _package_version,_read_project_lsdf_version,_version_tuple,_build_project_manifest,_wrap_lsdf_instructions,_replace_legacy_lsdf_section
+ $Verifies that indices are up-to-date.
+ !sync(ctx,path,check) > _find_project_root,_load_lsdfignore,_read_meta,_iter_walk_roots,_is_ignored_path,_combined_source_hash,_hash_str,_build_index_content
+ $Calculates token savings (Source Code vs. L-SDF Indices).
+ !stats(path,price,turns,cache_hit_rate,dd,verbose)
+@core.py
+ ~re
+ $Expands L-SDF to Markdown.
+ !to_markdown(lsdf_content) > _to_markdown_indent,_entity_label,_expand_signature,_expand_field
+ $Compresses Markdown to L-SDF.
+ !from_markdown(md_content) > _compact_signature,_compact_imports,_to_lsdf_indent,_compact_calls,_compact_schema_field,_collapse_inline_schemas

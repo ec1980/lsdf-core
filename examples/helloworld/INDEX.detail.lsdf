@@ -1,7 +1,12 @@
 @hello.py
  ~sys
+ $Sends personalised greetings to one or more named targets.
  @Greeter
+  $Greet a single person and return the formatted message.
   !say_hello(name:s):s
+  $Greet every non-empty name in the list in order.
   !greet(names:[s]):[s] > say_hello
+ $Return the list of names from argv, defaulting to [DEFAULT_NAME].
  !parse(argv:[s]):[s]
+ $Entry point: parse CLI args and greet each name in order.
  !run > Greeter.greet,parse

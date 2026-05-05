@@ -1,0 +1,12 @@
+@cli.py
+ ~click,datetime,hashlib,os,json,core,generators,importlib.metadata
+ !main
+ !gen
+ !trans
+ !init
+ !sync
+ !stats
+@core.py
+ ~re
+ !to_markdown
+ !from_markdown

@@ -20,7 +20,7 @@ Example from a typical Python repository (21 files, ~110K tokens of source, ~8K 
 | --- | --- | --- |
 | Source code, no caching | $5.81 | 90% |
 | Source code, with prompt caching | $2.03 | 73% |
-| **L-SDF indices + caching** | **$0.54** | — |
+| **L-SDF indices + caching** | **$0.55** | — |
  
 Modern agents (Claude Code, Cursor, Copilot) use prompt caching, so the middle row is the realistic baseline — **L-SDF still cuts costs by roughly 4× on top of caching.** The first row is the upper bound for environments without caching.
 
@@ -93,14 +93,19 @@ Running `lsdf gen examples/helloworld` produces two index files.
 ```text
 @hello.py
  ~sys
+ $Sends personalised greetings to one or more named targets.
  @Greeter
+  $Greet a single person and return the formatted message.
   !say_hello(name:s):s
+  $Greet every non-empty name in the list in order.
   !greet(names:[s]):[s] > say_hello
+ $Return the list of names from argv, defaulting to [DEFAULT_NAME].
  !parse(argv:[s]):[s]
+ $Entry point: parse CLI args and greet each name in order.
  !run > Greeter.greet,parse
 ```
 
-Both files strip every docstring, comment, and implementation body. `self` is omitted, `()` is omitted for zero-argument functions, and standard type aliases replace verbose names (`s`=str, `a`=Any, `[s]`=list[str], `q[s]`=Sequence[str], `l[...]`=Literal[...]).
+`INDEX.lsdf` keeps only the navigation skeleton. `INDEX.detail.lsdf` adds compact signatures, high-value docstring/comment annotations, and call edges while still omitting implementation bodies. `self` is omitted, `()` is omitted for zero-argument functions, and standard type aliases replace verbose names (`s`=str, `a`=Any, `[s]`=list[str], `q[s]`=Sequence[str], `l[...]`=Literal[...]).
 
 | | Source (`hello.py`) | `INDEX.lsdf` | `INDEX.detail.lsdf` |
 | --- | --- | --- | --- |

@@ -438,6 +438,37 @@ class TestLSDF(unittest.TestCase):
             self.assertIn(" !create_item(item)", detail)
             self.assertIn("  #POST /items", detail)
 
+    def test_python_generator_extracts_leading_single_line_comments_into_detail(self):
+        with TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "sample.py"
+            file_path.write_text(
+                "# Top-level note for run\n"
+                "def run():\n"
+                "    return 1\n"
+                "\n"
+                "class Greeter:\n"
+                '    """Greeter class doc."""\n'
+                "    # Field note\n"
+                "    name: str\n"
+                "    # Method note\n"
+                "    def greet(self):\n"
+                '        """Method doc."""\n'
+                "        return self.name\n",
+                encoding="utf-8",
+            )
+
+            nav, detail = PythonGenerator().generate(str(file_path))
+            self.assertIn(" !run", nav)
+            self.assertNotIn("$Top-level note for run", nav)
+
+            self.assertIn(" $Top-level note for run", detail)
+            self.assertIn(" $Greeter class doc.", detail)
+            self.assertIn("  $Field note", detail)
+            self.assertIn("  $Method note", detail)
+            self.assertIn("  $Method doc.", detail)
+            self.assertIn(" !run", detail)
+            self.assertIn(" @Greeter", detail)
+
     def test_python_generator_type_aliases(self):
         with TemporaryDirectory() as tmpdir:
             file_path = Path(tmpdir) / "sample.py"
