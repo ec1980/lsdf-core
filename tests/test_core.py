@@ -352,12 +352,14 @@ class TestLSDF(unittest.TestCase):
 
             nav, detail = PythonGenerator().generate(str(file_path))
 
-            # Both tiers share the file header and imports
-            for output in (nav, detail):
-                self.assertIn("@sample.py", output)
-                self.assertIn(" ~os,os.path", output)
-                self.assertIn(" ~package.module:Thing,helper", output)
-                self.assertNotIn("~[", output)
+            self.assertIn("@sample.py", nav)
+            self.assertIn("@sample.py", detail)
+            self.assertNotIn("~[", nav)
+            self.assertNotIn("~[", detail)
+
+            # Nav: reduced module-level import view
+            self.assertIn(" ~os,os.path,package.module", nav)
+            self.assertNotIn(" ~package.module:Thing,helper", nav)
 
             # Nav: schema classes must NOT appear
             self.assertNotIn("?FeatureSpec", nav)
@@ -373,6 +375,8 @@ class TestLSDF(unittest.TestCase):
             # Detail: schema class emitted as inline ?Name{fields}
             self.assertIn(" ?FeatureSpec{feature_id:s,enabled:b}", detail)
             self.assertNotIn("@FeatureSpec", detail)
+            self.assertIn(" ~os,os.path", detail)
+            self.assertIn(" ~package.module:Thing,helper", detail)
             self.assertIn("   !format_name(name:s):s", detail)
             self.assertIn("  !say_hello(name:s):s", detail)
             self.assertIn(" !run_loop(user)", detail)
@@ -401,8 +405,9 @@ class TestLSDF(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            nav, _ = PythonGenerator().generate(str(file_path))
-            self.assertIn(" ~deal_scorer.cli:main", nav)
+            nav, detail = PythonGenerator().generate(str(file_path))
+            self.assertIn(" ~deal_scorer.cli", nav)
+            self.assertIn(" ~deal_scorer.cli:main", detail)
             self.assertNotIn("~[", nav)
             self.assertNotIn("{main}", nav)
 
@@ -947,6 +952,8 @@ class TestCLI(unittest.TestCase):
                 claude_md = Path("CLAUDE.md").read_text(encoding="utf-8")
                 # Old instructions replaced
                 self.assertNotIn("old instructions", claude_md)
+                self.assertIn("<!-- LSDF:START -->", claude_md)
+                self.assertIn("<!-- LSDF:END -->", claude_md)
                 # L-SDF Protocol heading present
                 self.assertIn("L-SDF Protocol", claude_md)
                 # Content before the sentinel preserved
@@ -956,6 +963,36 @@ class TestCLI(unittest.TestCase):
                 self.assertIn("kept", claude_md)
                 # Sentinel appears exactly once
                 self.assertEqual(claude_md.count("L-SDF Protocol"), 1)
+
+    def test_init_refreshes_agent_instructions_when_project_manifest_is_missing(self):
+        with TemporaryDirectory() as tmpdir:
+            with self.runner.isolated_filesystem(temp_dir=tmpdir):
+                Path(".lsdf").mkdir()
+                Path(".lsdf/lsdf_instructions.md").write_text(
+                    "# L-SDF Protocol\nnew instructions\n",
+                    encoding="utf-8",
+                )
+                Path("CLAUDE.md").write_text(
+                    "# My Project\n\n## L-SDF Protocol\nold instructions\n\n# Other Section\nkept\n",
+                    encoding="utf-8",
+                )
+
+                with patch("src.cli._package_version", return_value="1.1.2"):
+                    result = self.runner.invoke(self.main, ["init"])
+                self.assertEqual(result.exit_code, 0, result.output)
+                self.assertIn("Rebuilding missing project.lsdf", result.output)
+                self.assertIn("Updated L-SDF instructions in CLAUDE.md", result.output)
+
+                project_lsdf = Path("project.lsdf").read_text(encoding="utf-8")
+                self.assertIn("$lsdf:", project_lsdf)
+
+                claude_md = Path("CLAUDE.md").read_text(encoding="utf-8")
+                self.assertNotIn("old instructions", claude_md)
+                self.assertIn("<!-- LSDF:START -->", claude_md)
+                self.assertIn("<!-- LSDF:END -->", claude_md)
+                self.assertIn("L-SDF Protocol", claude_md)
+                self.assertIn("# Other Section", claude_md)
+                self.assertIn("kept", claude_md)
 
     def test_init_warns_when_project_version_is_newer_than_cli(self):
         with TemporaryDirectory() as tmpdir:

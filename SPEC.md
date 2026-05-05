@@ -75,7 +75,7 @@ $lsdf:version
 
 ### 2.4 Machine metadata
 
-Generators SHOULD write machine metadata under `.lsdf/` for tooling use:
+Generators SHOULD write machine metadata under `.lsdf/` at the repository root for tooling use:
 
 ```text
 .lsdf/
@@ -91,7 +91,7 @@ Example `meta.json`:
 ```json
 {
   "generator": "lsdf-core",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "generated_at": "2026-05-03T12:00:00Z",
   "indices": {
     "src/INDEX.lsdf": {
@@ -110,11 +110,11 @@ Example `meta.json`:
 }
 ```
 
-All paths in `indices` are relative to the project root. `source_hash` is a SHA-256 prefix over all source files for that directory. `index_hash` is a SHA-256 prefix of the index file content. A mismatch between stored and current `source_hash` signals stale source; a mismatch in `index_hash` signals manual edits to the index.
+All paths in `indices` are relative to the repository root. `source_hash` is a SHA-256 prefix over all source files for that directory. `index_hash` is a SHA-256 prefix of the index file content. A mismatch between stored and current `source_hash` signals stale source; a mismatch in `index_hash` signals manual edits to the index.
 
 ## 3. Sigil Vocabulary
 
-Each non-blank line in an `.lsdf` file MUST begin with zero or more space characters followed by exactly one sigil character.
+Each non-blank, non-continuation line in an `.lsdf` file MUST begin with zero or more space characters followed by exactly one sigil character.
 
 | Sigil | Name | Purpose |
 | :---: | :--- | :--- |
@@ -141,8 +141,7 @@ This section summarizes the canonical line forms used by generated L-SDF. Later 
 ?Schema{field:type,...}
 #METHOD /path [> handler]
 $note
-$key:value
-\ continuation text
+\continued text
 ```
 
 Whitespace inside generated line forms SHOULD be minimized. Generators SHOULD NOT emit spaces after commas in argument lists, dependency lists, schema fields, or callee lists.
@@ -175,19 +174,19 @@ Generated L-SDF MUST use compact signatures. The following rules apply:
 - Omit `()` for zero-argument functions (write `!run`, not `!run()`).
 - Omit `:None` and `->None` return annotations.
 - No spaces after commas in parameter lists.
-- Use compact type aliases (see §4.3).
+- Use compact type aliases (see §4.4).
 
 `INDEX.lsdf` MAY omit argument lists and return types when they are not needed for navigation:
 
 ```text
 !score_deal
-!score_watch
+!find_vendor
 ```
 
 `INDEX.detail.lsdf` SHOULD include compact signatures when useful:
 
 ```text
-!score_deal(deal:Deal,watch:Watch,cfg:Cfg):DealScore
+!score_deal(deal:Deal,vendor:Vendor,cfg:Cfg):DealScore
 ```
 
 ### 4.4 Type aliases
@@ -223,9 +222,9 @@ Use multiline form only when the one-line form is too long to read or diff:
 
 ```text
 ?User
- id:uuid
- email:s
- active:b
+ ?id:uuid
+ ?email:s
+ ?active:b
 ```
 
 ### 4.6 Dependencies
@@ -249,7 +248,15 @@ Symbols imported from a module use colon-separated form:
 ~fastapi:APIRouter,Depends
 ```
 
+Wildcard imports, when they must be represented, use dotted-star form:
+
+```text
+~module.*
+```
+
 `INDEX.lsdf` SHOULD include only dependencies that help understand architecture. `INDEX.detail.lsdf` MAY include more import detail. Low-value or obvious imports SHOULD be omitted from both.
+
+In practice, `INDEX.lsdf` SHOULD prefer a reduced module-level view, while `INDEX.detail.lsdf` MAY include symbol-level imports and type-supporting dependencies that clarify public signatures, schemas, routes, decorators, and major call relationships.
 
 ### 4.7 Call edges
 
@@ -259,11 +266,15 @@ Generated call edges express that a function invokes or depends on other project
 !caller > callee1,callee2,callee3
 ```
 
-Same-file module-level functions are referenced by bare name. Methods may be qualified with their class name when that can be inferred directly from the call site:
+Same-file module-level functions are referenced by bare name. Methods MAY be qualified with their class name when that can be inferred directly from the call site:
 
 ```text
 !run > parse,Greeter.greet
 ```
+
+Generators SHOULD include only call edges they can identify with reasonable confidence. Generators MAY omit callees that cannot be resolved reliably, and MAY leave callees unqualified when module or package resolution is not reliable.
+
+Future generators MAY qualify cross-file callees with module or file scope when resolution is reliable, for example cli.parse, models.User.from_json, or src/cli.py:parse. Cross-file qualification is optional in L-SDF v1.1 and MUST NOT be required for conformance.
 
 Chained `>` notation (implying a causal or data-flow chain) MUST NOT be used in generated output:
 
@@ -276,13 +287,16 @@ Call edges MUST appear only in `INDEX.detail.lsdf`, not in `INDEX.lsdf`.
 
 Generators SHOULD include call edges for:
 
-- Route → handler
-- CLI command → entry function
 - Entry function → major pipeline functions
-- Public function → cross-file dependency
+- Public function → important same-file or confidently resolved project-level dependency
 - Orchestrator → major subfunctions
 - Factory or registry → registered implementation
 - Background job → worker function
+
+Generators MAY additionally include call edges for:
+
+- Route → handler
+- CLI command → entry function
 
 Generators SHOULD omit call edges for:
 
@@ -321,11 +335,11 @@ The following SHOULD always be included:
 
 ### 4.9 Continuations
 
-Each non-blank, non-continuation line in an `.lsdf` file MUST begin with zero or more space characters followed by exactly one sigil character.
+Continuation lines begin with `\` and continue the textual content of the preceding line or block.
 
-Continuation lines begin with `\` and inherit the semantic role and indentation depth of the preceding non-continuation line. The content after `\` is treated as a continuation of that preceding line.
+They are intended for multiline textual carryover, such as translated code blocks or long annotation text, rather than as independent semantic entries.
 
-Parsers MUST NOT treat continuation lines as independent entries.
+Parsers MAY render continuation lines as attached text associated with the preceding entry. Generated L-SDF SHOULD avoid continuations unless multiline textual carryover is necessary.
 
 ## 5. Generator Behaviour
 

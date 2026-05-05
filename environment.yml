@@ -6,8 +6,13 @@ dependencies:
   - python=3.10
   - pip
   - pip:
+    # Runtime dependencies for local development
     - click>=8.0
     - hatchling
-    - pytest
     - tree-sitter>=0.20
+
+    # Test dependencies
+    - pytest
+
+    # Install the current package in editable mode
     - -e .  # This installs the current package in editable mode automatically

@@ -68,6 +68,44 @@ def _write_meta(base_path, meta):
         f.write("\n")
 
 
+LSDF_SECTION_START = "<!-- LSDF:START -->"
+LSDF_SECTION_END = "<!-- LSDF:END -->"
+
+
+def _wrap_lsdf_instructions(instructions_text):
+    body = instructions_text.strip()
+    if body.startswith(LSDF_SECTION_START) and body.endswith(LSDF_SECTION_END):
+        return body + "\n"
+    return f"{LSDF_SECTION_START}\n{body}\n{LSDF_SECTION_END}\n"
+
+
+def _replace_legacy_lsdf_section(existing, replacement_block):
+    lines = existing.splitlines(keepends=True)
+    idx = next(
+        (i for i, l in enumerate(lines) if l.lstrip().startswith("#") and "L-SDF Protocol" in l),
+        None,
+    )
+    if idx is None:
+        return None
+    heading_level = len(lines[idx]) - len(lines[idx].lstrip("#"))
+    end_idx = len(lines)
+    for j in range(idx + 1, len(lines)):
+        stripped = lines[j].rstrip()
+        if stripped.startswith("#"):
+            level = len(stripped) - len(stripped.lstrip("#"))
+            if level <= heading_level:
+                end_idx = j
+                break
+    before = "".join(lines[:idx]).rstrip()
+    after = "".join(lines[end_idx:]).lstrip()
+    new_content = replacement_block
+    if before:
+        new_content = before + "\n\n" + new_content
+    if after:
+        new_content = new_content.rstrip() + "\n\n" + after
+    return new_content if new_content.endswith("\n") else new_content + "\n"
+
+
 def _iter_walk_roots(path, recursive, depth):
     root_path = os.path.abspath(path)
     max_depth = None if depth is None else max(depth, 0)
@@ -453,16 +491,49 @@ def init(ci):
 
     # 3. Detect version for upgrade/downgrade check
     current_version = _package_version()
+    project_manifest_exists = Path("project.lsdf").exists()
     stored_version = _read_project_lsdf_version("project.lsdf")
+    agent_configs = [
+        Path("CLAUDE.md"),
+        Path("AGENTS.md"),
+        Path(".cursorrules"),
+        Path(".github/copilot-instructions.md"),
+        Path("CONVENTIONS.md"),
+    ]
+    missing_manifest_upgrade = False
+    if not project_manifest_exists:
+        has_lsdf_template_set = any(
+            (target_lsdf_dir / name).exists()
+            for name in ("lsdf_spec.md", "update-lsdf.yml")
+        )
+        has_lsdf_protocol_in_agent = False
+        for config in agent_configs:
+            if config.exists():
+                try:
+                    config_text = config.read_text(encoding="utf-8")
+                    if (
+                        LSDF_SECTION_START in config_text or
+                        "L-SDF Protocol" in config_text
+                    ):
+                        has_lsdf_protocol_in_agent = True
+                        break
+                except OSError:
+                    pass
+        missing_manifest_upgrade = has_lsdf_template_set or has_lsdf_protocol_in_agent
     is_upgrade = (
-        stored_version is not None and
-        _version_tuple(stored_version) < _version_tuple(current_version)
+        missing_manifest_upgrade or
+        (
+            stored_version is not None and
+            _version_tuple(stored_version) < _version_tuple(current_version)
+        )
     )
     is_newer = (
         stored_version is not None and
         _version_tuple(stored_version) > _version_tuple(current_version)
     )
-    if is_upgrade:
+    if missing_manifest_upgrade:
+        click.echo("⬆️  Rebuilding missing project.lsdf and refreshing existing L-SDF instructions")
+    elif is_upgrade:
         click.echo(f"⬆️  Upgrading L-SDF from {stored_version} to {current_version}")
     elif is_newer:
         click.echo(
@@ -496,6 +567,12 @@ def init(ci):
         for template in source_dir.glob("*"):
             if template.is_file():
                 destination = target_lsdf_dir / template.name
+                try:
+                    if template.resolve() == destination.resolve():
+                        skipped_files += 1
+                        continue
+                except OSError:
+                    pass
                 if destination.exists() and (not is_upgrade or is_newer):
                     skipped_files += 1
                     continue
@@ -533,54 +610,43 @@ def init(ci):
 
     # 7. Append instructions to any agent config files that already exist
     instructions_path = target_lsdf_dir / "lsdf_instructions.md"
-    sentinel = "# L-SDF Protocol"
-    agent_configs = [
-        Path("CLAUDE.md"),
-        Path("AGENTS.md"),
-        Path(".cursorrules"),
-        Path(".github/copilot-instructions.md"),
-        Path("CONVENTIONS.md"),
-    ]
     if instructions_path.exists():
         instructions_text = instructions_path.read_text(encoding="utf-8")
+        managed_block = _wrap_lsdf_instructions(instructions_text)
         for config in agent_configs:
             if not config.exists():
                 continue
             existing = config.read_text(encoding="utf-8")
-            if sentinel in existing:
+            if LSDF_SECTION_START in existing and LSDF_SECTION_END in existing:
                 if is_upgrade:
-                    lines = existing.splitlines(keepends=True)
-                    # Find line containing the L-SDF Protocol heading (any # level)
-                    idx = next(
-                        (i for i, l in enumerate(lines)
-                         if l.startswith("#") and "L-SDF Protocol" in l),
-                        None,
-                    )
-                    if idx is not None:
-                        heading_level = len(lines[idx]) - len(lines[idx].lstrip("#"))
-                        # Find end of section: next heading at same or higher level
-                        end_idx = len(lines)
-                        for j in range(idx + 1, len(lines)):
-                            stripped = lines[j].rstrip()
-                            if stripped.startswith("#"):
-                                level = len(stripped) - len(stripped.lstrip("#"))
-                                if level <= heading_level:
-                                    end_idx = j
-                                    break
-                        before = "".join(lines[:idx]).rstrip()
-                        after = "".join(lines[end_idx:])
-                        new_content = before + f"\n\n{instructions_text.rstrip()}"
-                        if after.strip():
-                            new_content += f"\n\n{after.lstrip()}"
-                        else:
-                            new_content += "\n"
-                        config.write_text(new_content, encoding="utf-8")
+                    start_idx = existing.index(LSDF_SECTION_START)
+                    end_idx = existing.index(LSDF_SECTION_END) + len(LSDF_SECTION_END)
+                    before = existing[:start_idx].rstrip()
+                    after = existing[end_idx:].lstrip()
+                    new_content = managed_block
+                    if before:
+                        new_content = before + "\n\n" + new_content
+                    if after:
+                        new_content = new_content.rstrip() + "\n\n" + after
+                    if not new_content.endswith("\n"):
+                        new_content += "\n"
+                    config.write_text(new_content, encoding="utf-8")
+                    click.echo(f"✅ Updated L-SDF instructions in {config}")
+                else:
+                    click.echo(f"ℹ️  Skipped {config} (L-SDF already present)")
+            elif "L-SDF Protocol" in existing:
+                if is_upgrade:
+                    migrated = _replace_legacy_lsdf_section(existing, managed_block)
+                    if migrated is not None:
+                        config.write_text(migrated, encoding="utf-8")
                         click.echo(f"✅ Updated L-SDF instructions in {config}")
                 else:
                     click.echo(f"ℹ️  Skipped {config} (L-SDF already present)")
             else:
                 with config.open("a", encoding="utf-8") as f:
-                    f.write(f"\n{instructions_text}")
+                    if existing and not existing.endswith("\n"):
+                        f.write("\n")
+                    f.write("\n" + managed_block)
                 click.echo(f"✅ Appended L-SDF instructions to {config}")
 
 @main.command()

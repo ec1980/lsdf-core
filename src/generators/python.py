@@ -85,7 +85,7 @@ def _alias_annotation(node):
         return None
 
 
-def _emit_import_lines(direct_imports, from_imports):
+def _emit_import_lines(direct_imports, from_imports, detail=False):
     """Return formatted ~-prefixed import lines for a file."""
     lines = []
     seen = set()
@@ -94,16 +94,29 @@ def _emit_import_lines(direct_imports, from_imports):
         if item not in seen:
             seen.add(item)
             direct.append(item)
-    if direct:
-        lines.append(f" ~{','.join(direct)}")
+
+    if detail:
+        if direct:
+            lines.append(f" ~{','.join(direct)}")
+        for module_name in sorted(from_imports):
+            symbols = list(dict.fromkeys(from_imports[module_name]))
+            if symbols == ['*']:
+                lines.append(f" ~{module_name}.*")
+            elif len(symbols) == 1:
+                lines.append(f" ~{module_name}:{symbols[0]}")
+            else:
+                lines.append(f" ~{module_name}:{','.join(symbols)}")
+        return lines
+
+    nav_modules = []
+    for item in direct:
+        if item not in nav_modules:
+            nav_modules.append(item)
     for module_name in sorted(from_imports):
-        symbols = list(dict.fromkeys(from_imports[module_name]))
-        if symbols == ['*']:
-            lines.append(f" ~{module_name}.*")
-        elif len(symbols) == 1:
-            lines.append(f" ~{module_name}:{symbols[0]}")
-        else:
-            lines.append(f" ~{module_name}:{','.join(symbols)}")
+        if module_name not in nav_modules:
+            nav_modules.append(module_name)
+    if nav_modules:
+        lines.append(f" ~{','.join(nav_modules)}")
     return lines
 
 
@@ -203,18 +216,19 @@ class PythonGenerator:
         for item in tree.body:
             if isinstance(item, ast.Import):
                 for n in item.names:
-                    if n.name != '__future__':
+                    if n.name not in {'__future__', 'typing'}:
                         direct_imports.append(n.name)
             elif isinstance(item, ast.ImportFrom):
-                if item.module and item.module != '__future__':
+                if item.module and item.module not in {'__future__', 'typing'}:
                     for alias in item.names:
                         from_imports.setdefault(item.module, []).append(
                             '*' if alias.name == '*' else alias.name
                         )
 
-        import_lines = _emit_import_lines(direct_imports, from_imports)
-        nav_lines = [f'@{basename}'] + import_lines
-        detail_lines = [f'@{basename}'] + import_lines
+        nav_import_lines = _emit_import_lines(direct_imports, from_imports, detail=False)
+        detail_import_lines = _emit_import_lines(direct_imports, from_imports, detail=True)
+        nav_lines = [f'@{basename}'] + nav_import_lines
+        detail_lines = [f'@{basename}'] + detail_import_lines
 
         def _compact_args(func_node):
             args = []

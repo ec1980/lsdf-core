@@ -19,10 +19,10 @@ Example from a typical Python repository (21 files, ~110K tokens of source, ~8K 
 | Scenario | Session Cost | Savings with L-SDF |
 | --- | --- | --- |
 | Source code, no caching | $5.81 | 90% |
-| Source code, with prompt caching | $2.03 | 71% |
-| **L-SDF indices + caching** | **$0.59** | — |
+| Source code, with prompt caching | $2.03 | 73% |
+| **L-SDF indices + caching** | **$0.54** | — |
  
-Modern agents (Claude Code, Cursor, Copilot) use prompt caching, so the middle row is the realistic baseline — **L-SDF still cuts costs by roughly 2.5× on top of caching.** The first row is the upper bound for environments without caching.
+Modern agents (Claude Code, Cursor, Copilot) use prompt caching, so the middle row is the realistic baseline — **L-SDF still cuts costs by roughly 4× on top of caching.** The first row is the upper bound for environments without caching.
 
 > **Assumptions:** Claude Sonnet input pricing ($3/M tokens, $0.30/M cached read, $3.75/M cache write); 80% prompt-cache hit rate; 20% of turns drill into source for ~10K uncached tokens with L-SDF; and without L-SDF, agents incur an additional 15% raw-source orientation overhead on top of drilldowns. Output tokens identical across scenarios and excluded. Numbers vary with repo size, agent behavior, and model choice.
 
@@ -259,13 +259,17 @@ L-SDF works with your existing AI tools by providing them with a "map" to read b
    4. Open source files only when implementation bodies are required.
    5. After structural edits, update both index files with `lsdf gen <dir>`.
 
-### Evaluation Example
+### Compare Agent Behavior
 
 You can compare agent behavior with and without LSDF guidance.
 
-#### Suggested Prompt
+#### Suggested Prompts
 
-> Count the number of public functions in the src dir that has no return value, with and without using LSDF files. Show the number of files opened and tokens used in both cases.
+> List the main entry points, pipeline stages, and external dependencies in `src`. Do it once using LSDF files first, and once by reading raw source only. Show the files opened and tokens used in both cases.
+
+> Find all functions in `src` that accept a Pydantic model, TypedDict, or dataclass-like schema as input. Do it with and without LSDF guidance. Show the files opened and tokens used in both cases.
+
+> If we rename a core function in `src`, what other functions, routes, or callers would likely need updates? Answer once using LSDF files first, and once using raw source only. Show the files opened and tokens used in both cases.
 
 
 ----

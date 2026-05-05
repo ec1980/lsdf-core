@@ -9,6 +9,9 @@ All notable changes to this project will be documented in this file.
 - Refined package metadata in `pyproject.toml`, including project URLs, Python version requirements, classifiers, and license metadata.
 - Clarified README and spec language around agent-first usage, call edges, workflow guidance, and current limitations.
 - Added release-supporting project docs including `SECURITY.md`.
+- Fixed `lsdf init` to rebuild missing `project.lsdf` and refresh existing agent L-SDF instructions when prior L-SDF state is detected.
+- Switched `lsdf init` instruction management to explicit `LSDF:START` / `LSDF:END` markers so updates do not remove unrelated text in agent config files.
+- Fixed `lsdf init` to avoid copying `.lsdf` template files onto themselves when run inside the `lsdf-core` repository.
 
 ## 1.1.1 - 2026-05-04
 
