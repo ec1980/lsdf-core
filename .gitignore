@@ -14,5 +14,6 @@ venv/
 .lsdf/
 *.lsdf
 !examples/**/*.lsdf
+.lsdfignore
 AGENTS.md
 CLAUDE.md
