@@ -1,7 +1,7 @@
 
 # L-SDF: Latent-Structured Documentation Format
 
-*Cut AI coding session costs by ~4× on top of prompt caching. Works with Claude Code, Cursor, and Copilot today.*
+*Cut AI coding session input token costs significantly on top of prompt caching. Works with Claude Code, Cursor, and Copilot today.*
 
 ![LSDF demo](https://github.com/user-attachments/assets/4049c722-a182-42d1-aa94-81f466fc2796)
 
@@ -19,9 +19,9 @@ Example from a typical Python repository (21 files, ~110K tokens of source, ~8K 
 | Source code, with prompt caching | $2.03 | 73% |
 | **L-SDF indices + caching** | **$0.55** | — |
  
-Modern agents (Claude Code, Cursor, Copilot) use prompt caching, so the middle row is the realistic baseline — **L-SDF still cuts costs by roughly 4× on top of caching.**
+Modern agents (Claude Code, Cursor, Copilot) use prompt caching, so the middle row is the realistic baseline — **L-SDF can cut input token costs by 60–75% on top of caching, depending on how often agents open source files.**
 
-> **Assumptions:** Claude Sonnet input pricing ($3/M tokens, $0.30/M cached read, $3.75/M cache write); 80% prompt-cache hit rate; 20% of turns drill into source for ~10K uncached tokens with L-SDF; and without L-SDF, agents incur an additional 15% raw-source orientation overhead on top of drilldowns. Output tokens identical across scenarios and excluded. Numbers vary with repo size, agent behavior, and model choice.
+> **Assumptions:** Claude Sonnet input pricing ($3/M tokens, $0.30/M cached read, $3.75/M cache write); 80% prompt-cache hit rate; 20% of turns drill into source for ~10K uncached tokens with L-SDF; and without L-SDF, agents incur an additional 15% raw-source orientation overhead on top of drilldowns. Output tokens identical across scenarios and excluded. Numbers vary with repo size, agent behavior, and model choice. Savings apply to input tokens only; output tokens and tool call costs are not modeled.
 
 ## The Philosophy: Agent-First vs. Human-First
 
