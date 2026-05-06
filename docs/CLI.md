@@ -77,7 +77,7 @@ Verifies that indices are up-to-date.
 
 ### 5. `lsdf stats` (ROI Calculator)
 
-Estimates session cost for raw-source versus L-SDF-guided coding.
+Estimates input token cost savings for L-SDF-guided versus raw-source coding sessions. Assumes prompt caching as the baseline.
 
 - **Usage:** `lsdf stats [PATH] [OPTIONS]`
 - **Options:**
@@ -86,8 +86,6 @@ Estimates session cost for raw-source versus L-SDF-guided coding.
   - `--cache_hit_rate FLOAT`: Fraction of cached reads served from cache (default: `0.8`)
   - `--dd FLOAT`: Fraction of turns that drill into raw source (default: `0.2`)
   - `--verbose`: Print model assumptions and derived prices
-- **Output:** Displays a terminal-friendly session cost report for:
-  - `Baseline A`: raw source, no caching
-  - `Baseline B`: raw source, with cache
-  - `L-SDF+cache`: cached `INDEX.lsdf` plus partial `INDEX.detail.lsdf` reads and uncached source drilldowns
-- **Verbose assumptions:** Includes turns per session, chars per token, drilldown rate, detail open rate, source overhead without L-SDF, drilldown size, cache hit rate, and pricing assumptions.
+- **Output:** Token counts and compression ratio for source files, `INDEX.lsdf`, and `INDEX.detail.lsdf`; estimated session cost for raw source (cached) versus L-SDF with caching; and percentage savings.
+
+- **Verbose assumptions:** Includes turns per session, chars per token, drilldown rate, detail open rate, source overhead without L-SDF, drilldown size, cache hit rate, and pricing breakdown (input, cache read, cache write).

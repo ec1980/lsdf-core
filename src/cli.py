@@ -848,7 +848,7 @@ def stats(path, price, turns, cache_hit_rate, dd, verbose):
     ratio_val = click.style(f"{ratio:>{VAL_W - 1}.1f}×", fg="green")
     click.echo(f"  {'Compression ratio':<{LBL_W}}│  {ratio_val}")
     click.echo(SEP_S)
-    click.echo(f"  Est. {turns}-turn session cost")
+    click.echo(f"  Est. {turns}-turn input token cost")
     cost_col = W - 2
     def cost_row(label, plain, styled):
         line = f"    {label}"
@@ -858,6 +858,7 @@ def stats(path, price, turns, cache_hit_rate, dd, verbose):
     click.echo(cost_row("With L-SDF + caching:", f"${cost_c:.2f}", click.style(f"${cost_c:.2f}", fg="green")))
     click.echo(cost_row("Savings:", f"{sav_b:.0f}%", click.style(f"{sav_b:.0f}%", fg="green")))
     click.echo(SEP_D)
+    click.echo("  Session costs and savings apply to input tokens only.")
     click.echo("  Run with --verbose to show assumptions.")
 
     if verbose:
