@@ -884,7 +884,7 @@ class TestCLI(unittest.TestCase):
                 result = self.runner.invoke(self.main, ["init"])
                 self.assertEqual(result.exit_code, 0, result.output)
                 self.assertEqual(existing.read_text(encoding="utf-8"), "custom instructions\n")
-                self.assertIn("preserved", result.output)
+                self.assertNotIn("Created .lsdf/lsdf_instructions.md", result.output)
 
     def test_init_creates_lsdfignore_with_default_entries(self):
         with TemporaryDirectory() as tmpdir:
@@ -1029,7 +1029,7 @@ class TestCLI(unittest.TestCase):
                 with patch("src.cli._package_version", return_value="1.1.2"):
                     result = self.runner.invoke(self.main, ["init"])
                 self.assertEqual(result.exit_code, 0, result.output)
-                self.assertIn("Rebuilding missing project.lsdf", result.output)
+                self.assertIn("Initializing L-SDF", result.output)
                 self.assertIn("Updated L-SDF instructions in CLAUDE.md", result.output)
 
                 project_lsdf = Path("project.lsdf").read_text(encoding="utf-8")

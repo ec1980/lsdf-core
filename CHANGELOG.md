@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.1.5 - 2026-05-05
+
+### Changed
+
+- `lsdf stats` report redesigned: simplified to assume prompt caching as baseline, new table layout with labeled columns, file counts, token counts, compression ratio, and color-coded cost comparison.
+- `lsdf init` now prints individual "Created" or "Updated" lines per template file instead of a single count summary.
+- `lsdf init` no longer prints "Rebuilding" for a fresh repo that already has L-SDF protocol in agent config files — shows "Initializing" instead.
+- README refreshed: shorter intro, demo GIF, tightened ROI section, bold bullet labels in philosophy section.
+
 ## 1.1.4 - 2026-05-05
 
 ### Fixed

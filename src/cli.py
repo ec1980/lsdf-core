@@ -534,7 +534,10 @@ def init(ci):
         _version_tuple(stored_version) > _version_tuple(current_version)
     )
     if missing_manifest_upgrade:
-        click.echo("⬆️  Rebuilding missing project.lsdf and refreshing existing L-SDF instructions")
+        if has_lsdf_template_set:
+            click.echo("⬆️  Rebuilding missing project.lsdf and refreshing existing L-SDF instructions")
+        else:
+            click.echo("✨ Initializing L-SDF")
     elif is_upgrade:
         click.echo(f"⬆️  Upgrading L-SDF from {stored_version} to {current_version}")
     elif is_newer:
@@ -564,7 +567,8 @@ def init(ci):
 
     # 5. Copy template files into .lsdf/ (overwrite on upgrade)
     if source_dir.exists():
-        copied_files = 0
+        created_files = []
+        updated_files = []
         skipped_files = 0
         for template in source_dir.glob("*"):
             if template.is_file():
@@ -578,15 +582,16 @@ def init(ci):
                 if destination.exists() and (not is_upgrade or is_newer):
                     skipped_files += 1
                     continue
+                existed = destination.exists()
                 shutil.copy(template, destination)
-                copied_files += 1
-        if is_upgrade:
-            click.echo(f"✅ Updated {copied_files} template file(s) in {target_lsdf_dir}/")
-        else:
-            click.echo(
-                f"✅ L-SDF Initialized. Added {copied_files} file(s) to {target_lsdf_dir}/"
-                f" and preserved {skipped_files} existing file(s)."
-            )
+                if existed:
+                    updated_files.append(destination.name)
+                else:
+                    created_files.append(destination.name)
+        for name in sorted(created_files):
+            click.echo(f"✅ Created .lsdf/{name}")
+        for name in sorted(updated_files):
+            click.echo(f"✅ Updated .lsdf/{name}")
     else:
         click.echo("⚠️  Template source not found. Creating basic placeholder rules.")
         fallback_file = target_lsdf_dir / "lsdf_instructions.md"
@@ -819,29 +824,41 @@ def stats(path, price, turns, cache_hit_rate, dd, verbose):
         + cached_session_cost(detail_tokens * DETAIL_OPEN_RATE)
         + turns * dd * DRILLDOWN_TOKENS * price / 1_000_000
     )
-    sav_b_vs_a = (1 - cost_b / cost_a) * 100 if cost_a > 0 else 0.0
-    sav_a = (1 - cost_c / cost_a) * 100 if cost_a > 0 else 0.0
     sav_b = (1 - cost_c / cost_b) * 100 if cost_b > 0 else 0.0
+    lsdf_tokens = nav_tokens + detail_tokens
+    ratio = source_tokens / lsdf_tokens if lsdf_tokens > 0 else 0.0
 
-    W = 60
-    click.echo("📊 L-SDF ROI Report")
-    click.echo("=" * W)
-    click.echo(f"Source files:       {source_files_count:>4} files  |  {source_tokens:>9,} tokens")
-    click.echo(f"INDEX.lsdf (nav):   {nav_files_count:>4} files  |  {nav_tokens:>9,} tokens")
-    click.echo(f"INDEX.detail.lsdf:  {detail_files_count:>4} files  |  {detail_tokens:>9,} tokens")
-    click.echo()
-    click.echo("  Scenario    Session Cost  Savings vs A   Savings vs B")
-    click.echo("  ───────────────────────────────────────────────────────")
-    click.echo(f"  Baseline A        ${cost_a:>4.2f}            -              -")
-    click.echo(f"  Baseline B        ${cost_b:>4.2f}         {sav_b_vs_a:>4.1f}%             -")
-    click.echo(f"  L-SDF+cache       ${cost_c:>4.2f}         {sav_a:>4.1f}%          {sav_b:>4.1f}%")
-    click.echo()
-    click.echo(f"  Session Cost: for {turns}-turn session")
-    click.echo("  Baseline A: raw source, no caching")
-    click.echo("  Baseline B: raw source, with cache")
+    W = 55
+    LBL_W = 32  # supports up to "INDEX.detail.lsdf (1000 files)"
+    VAL_W = 9   # supports up to 1,000,000 tokens
+    SEP_D = click.style("═" * W, fg="yellow")
+    SEP_S = "─" * W
 
-    click.echo()
-    click.echo("=" * W)
+    def tok_row(label, tokens):
+        val = click.style(f"{tokens:>{VAL_W},}", fg="blue")
+        return f"  {label:<{LBL_W}}│  {val} tokens"
+
+    click.echo(SEP_D)
+    click.echo(click.style("  L-SDF session savings estimate", fg="yellow"))
+    click.echo(SEP_S)
+    click.echo(tok_row(f"Source files ({source_files_count} files)", source_tokens))
+    click.echo(tok_row(f"INDEX.lsdf ({nav_files_count} files)", nav_tokens))
+    click.echo(tok_row(f"INDEX.detail.lsdf ({detail_files_count} files)", detail_tokens))
+    click.echo(tok_row("Total L-SDF", lsdf_tokens))
+    ratio_val = click.style(f"{ratio:>{VAL_W - 1}.1f}×", fg="green")
+    click.echo(f"  {'Compression ratio':<{LBL_W}}│  {ratio_val}")
+    click.echo(SEP_S)
+    click.echo(f"  Est. {turns}-turn session cost")
+    cost_col = W - 2
+    def cost_row(label, plain, styled):
+        line = f"    {label}"
+        padding = " " * max(1, cost_col - len(line) - len(plain))
+        return line + padding + styled
+    click.echo(cost_row("Raw source (cached):", f"${cost_b:.2f}", click.style(f"${cost_b:.2f}", fg="blue")))
+    click.echo(cost_row("With L-SDF + caching:", f"${cost_c:.2f}", click.style(f"${cost_c:.2f}", fg="green")))
+    click.echo(cost_row("Savings:", f"{sav_b:.0f}%", click.style(f"{sav_b:.0f}%", fg="green")))
+    click.echo(SEP_D)
+    click.echo("  Run with --verbose to show assumptions.")
 
     if verbose:
         click.echo()
