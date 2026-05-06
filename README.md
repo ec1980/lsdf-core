@@ -1,18 +1,15 @@
 
 # L-SDF: Latent-Structured Documentation Format
 
-L-SDF is an **agent-first** documentation format for representing codebases in a compact, structured form that AI coding agents can navigate efficiently. While standard documentation such as Markdown is optimized for human readability, L-SDF is optimized for **token density, inference efficiency, and context awareness**. By using a hierarchical sigil-based topology, L-SDF helps agents like Claude Code, Cursor, and Codex/Copilot map large repositories at a fraction of the token cost of reading raw source files or prose-heavy documentation.
+*Cut AI coding session costs by ~4× on top of prompt caching. Works with Claude Code, Cursor, and Copilot today.*
 
-## The Philosophy: Agent-First vs. Human-First
+![LSDF demo](https://github.com/user-attachments/assets/4049c722-a182-42d1-aa94-81f466fc2796)
 
-Human-first documentation such as Markdown includes prose and formatting that are valuable to readers, but expensive when repeatedly loaded into AI coding sessions. L-SDF is designed for AI coding agents:
-
-* Sigils as Hard Anchors: Symbols like `@`, `!`, and `~` provide stable structural anchors. Agents and parsers do not need to infer whether a line is a class, function, dependency, or route from prose formatting.
-* Compact Context: L-SDF often fits a useful repo-level architecture map into a small context window, keeping structural context available before the agent opens source files.
+L-SDF is an **agent-first** documentation format that maps codebases into compact index files AI agents can scan before opening source code — optimized for **token density** rather than human readability.
 
 ## Token Economics & ROI
 
-In a typical coding session, source code and project context are re-sent to the API across many turns. L-SDF indexes raw source code into a compact structural map that an agent can scan first, often using a fraction of the tokens.
+In a typical coding session, source code is re-sent to the API across many turns. L-SDF replaces that with a compact structural map agents can scan first.
  
 Example from a typical Python repository (21 files, ~110K tokens of source, ~8K tokens of L-SDF indices), measured over a 50-turn session:
  
@@ -22,11 +19,18 @@ Example from a typical Python repository (21 files, ~110K tokens of source, ~8K 
 | Source code, with prompt caching | $2.03 | 73% |
 | **L-SDF indices + caching** | **$0.55** | — |
  
-Modern agents (Claude Code, Cursor, Copilot) use prompt caching, so the middle row is the realistic baseline — **L-SDF still cuts costs by roughly 4× on top of caching.** The first row is the upper bound for environments without caching.
+Modern agents (Claude Code, Cursor, Copilot) use prompt caching, so the middle row is the realistic baseline — **L-SDF still cuts costs by roughly 4× on top of caching.**
 
 > **Assumptions:** Claude Sonnet input pricing ($3/M tokens, $0.30/M cached read, $3.75/M cache write); 80% prompt-cache hit rate; 20% of turns drill into source for ~10K uncached tokens with L-SDF; and without L-SDF, agents incur an additional 15% raw-source orientation overhead on top of drilldowns. Output tokens identical across scenarios and excluded. Numbers vary with repo size, agent behavior, and model choice.
 
-----
+## The Philosophy: Agent-First vs. Human-First
+
+Human-first documentation includes prose and formatting valuable to readers, but expensive when repeatedly loaded into AI coding sessions. L-SDF is designed for agents:
+
+* **Sigils as hard anchors:** Symbols like `@`, `!`, and `~` give agents stable structural anchors without inferring meaning from prose.
+* **Compact context:** L-SDF fits a repo-level architecture map into a small context window, available before the agent opens any source file.
+
+---
 
 ## The Hello World Example
 
@@ -103,7 +107,7 @@ This example uses a very small source file, so the detail index has less room to
 
 An agent navigating the repo reads `INDEX.lsdf` first. It only opens `INDEX.detail.lsdf` when it needs signatures or call edges, and opens `hello.py` only when it needs the implementation body.
 
-----
+---
 
 ## Quick Start
 
@@ -215,7 +219,7 @@ lsdf gen . --recursive
 
 > Run `lsdf stats` after your first generation to see exactly how much you're saving on your next AI coding session.
 
-----
+---
 
 ## Index Drift and Sync
 
@@ -239,7 +243,7 @@ The exit code is non-zero if any index file is out of date relative to source. W
 
 This gives you the strongest enforcement, but it requires write permissions on the branch and may create noisy history. Use it in repos where index accuracy matters more than a perfectly clean commit log.
 
-----
+---
 
 ## AI Agent Integration
 
@@ -266,7 +270,7 @@ You can compare agent behavior with and without LSDF guidance.
 > If we rename a core function in `src`, what other functions, routes, or callers would likely need updates? Answer once using LSDF files first, and once using raw source only. Show the files opened and tokens used in both cases.
 
 
-----
+---
 
 ## The L-SDF Spec
 
@@ -288,7 +292,7 @@ In L-SDF, sigils act as single-character semantic tags. Instead of wasting token
 
 > See `SPEC.md` for the full specification.
 
-----
+---
 
 ## CLI Commands
 
@@ -300,7 +304,7 @@ In L-SDF, sigils act as single-character semantic tags. Instead of wasting token
 
 > See `docs/CLI.md` for more details.
 
-----
+---
 
 ## Current Limitations
 
@@ -308,13 +312,13 @@ In L-SDF, sigils act as single-character semantic tags. Instead of wasting token
 * The format is Draft v1.1 and may evolve before a stable 2.0 spec.
 * Generated call edges are structural hints, not a complete static-analysis call graph.
 
-----
+---
 
 ## License
 
 MIT
 
-----
+---
 
 ## Contributing
 
