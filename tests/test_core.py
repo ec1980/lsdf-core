@@ -684,14 +684,20 @@ class TestLSDF(unittest.TestCase):
 class TestCLI(unittest.TestCase):
     def setUp(self):
         from click.testing import CliRunner
-        from src.cli import main
+        from src.cli import main, _package_version
 
         self.runner = CliRunner()
         self.main = main
+        self.package_version = _package_version()
+
+    def _write_project_lsdf(self, root: Path, version: str | None = None):
+        version = version or self.package_version
+        root.joinpath("project.lsdf").write_text(f"^test:Python\n$lsdf:{version}\n", encoding="utf-8")
 
     def test_gen_produces_both_index_tiers(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
+            self._write_project_lsdf(root)
             pkg = root / "pkg"
             pkg.mkdir()
             (pkg / "app.py").write_text(
@@ -715,6 +721,7 @@ class TestCLI(unittest.TestCase):
     def test_gen_supports_depth_and_overwrite_default(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
+            self._write_project_lsdf(root)
             src = root / "src"
             nested = src / "nested"
             src.mkdir()
@@ -734,11 +741,13 @@ class TestCLI(unittest.TestCase):
             (src / "INDEX.lsdf").write_text("manual edit\n", encoding="utf-8")
             rewritten = self.runner.invoke(self.main, ["gen", str(root), "--recursive"])
             self.assertEqual(rewritten.exit_code, 0, rewritten.output)
+            self.assertIn(f"Updated: {src / 'INDEX.lsdf'}", rewritten.output)
             self.assertNotEqual((src / "INDEX.lsdf").read_text(encoding="utf-8"), "manual edit\n")
 
     def test_gen_sorts_files_alphabetically(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
+            self._write_project_lsdf(root)
             pkg = root / "pkg"
             pkg.mkdir()
 
@@ -754,6 +763,7 @@ class TestCLI(unittest.TestCase):
     def test_gen_respects_lsdfignore(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
+            self._write_project_lsdf(root)
             Path(root / ".lsdfignore").write_text("ignored_dir\n", encoding="utf-8")
             kept = root / "kept"
             ignored = root / "ignored_dir"
@@ -772,6 +782,7 @@ class TestCLI(unittest.TestCase):
     def test_sync_check_detects_drift(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
+            self._write_project_lsdf(root)
             pkg = root / "pkg"
             pkg.mkdir()
 
@@ -792,9 +803,63 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(drift.exit_code, 1, drift.output)
             self.assertIn("L-SDF drift detected", drift.output)
 
+    def test_clean_removes_generated_indices_and_meta(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            self._write_project_lsdf(root)
+            pkg = root / "pkg"
+            pkg.mkdir()
+            (pkg / "app.py").write_text("def run():\n    return 1\n", encoding="utf-8")
+
+            self.runner.invoke(self.main, ["gen", str(root), "--recursive"])
+            self.assertTrue((pkg / "INDEX.lsdf").exists())
+            self.assertTrue((pkg / "INDEX.detail.lsdf").exists())
+            self.assertTrue((root / ".lsdf" / "meta.json").exists())
+
+            result = self.runner.invoke(self.main, ["clean", str(root), "--recursive", "--yes"])
+            self.assertEqual(result.exit_code, 0, result.output)
+            self.assertIn(f"Deleted {pkg / 'INDEX.lsdf'}", result.output)
+            self.assertIn(f"Deleted {pkg / 'INDEX.detail.lsdf'}", result.output)
+            self.assertIn(f"Deleted {root / '.lsdf' / 'meta.json'}", result.output)
+            self.assertFalse((pkg / "INDEX.lsdf").exists())
+            self.assertFalse((pkg / "INDEX.detail.lsdf").exists())
+            self.assertFalse((root / ".lsdf" / "meta.json").exists())
+
+    def test_clean_all_removes_bootstrap_files_and_managed_agent_block(self):
+        with TemporaryDirectory() as tmpdir:
+            with self.runner.isolated_filesystem(temp_dir=tmpdir):
+                Path("CLAUDE.md").write_text("# Project\n", encoding="utf-8")
+                init_result = self.runner.invoke(self.main, ["init", "--ci"])
+                self.assertEqual(init_result.exit_code, 0, init_result.output)
+
+                pkg = Path("pkg")
+                pkg.mkdir()
+                (pkg / "app.py").write_text("def run():\n    return 1\n", encoding="utf-8")
+                gen_result = self.runner.invoke(self.main, ["gen", ".", "--recursive"])
+                self.assertEqual(gen_result.exit_code, 0, gen_result.output)
+
+                result = self.runner.invoke(self.main, ["clean", ".", "--recursive", "--all", "--yes"])
+                self.assertEqual(result.exit_code, 0, result.output)
+                self.assertIn(".lsdf", result.output)
+                self.assertIn(".lsdfignore", result.output)
+                self.assertIn("project.lsdf", result.output)
+                self.assertIn("CLAUDE.md", result.output)
+
+                self.assertFalse(Path("pkg/INDEX.lsdf").exists())
+                self.assertFalse(Path("pkg/INDEX.detail.lsdf").exists())
+                self.assertFalse(Path("project.lsdf").exists())
+                self.assertFalse(Path(".lsdf").exists())
+                self.assertFalse(Path(".lsdfignore").exists())
+
+                claude_text = Path("CLAUDE.md").read_text(encoding="utf-8")
+                self.assertIn("# Project", claude_text)
+                self.assertNotIn("LSDF:START", claude_text)
+                self.assertNotIn("LSDF:END", claude_text)
+
     def test_gen_writes_meta_json(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
+            self._write_project_lsdf(root)
             pkg = root / "pkg"
             pkg.mkdir()
             (pkg / "app.py").write_text("def run():\n    return 1\n", encoding="utf-8")
@@ -827,6 +892,7 @@ class TestCLI(unittest.TestCase):
     def test_sync_uses_meta_fast_path(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
+            self._write_project_lsdf(root)
             pkg = root / "pkg"
             pkg.mkdir()
             py_file = pkg / "app.py"
@@ -848,6 +914,7 @@ class TestCLI(unittest.TestCase):
     def test_sync_detects_manual_index_edit(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
+            self._write_project_lsdf(root)
             pkg = root / "pkg"
             pkg.mkdir()
             (pkg / "app.py").write_text("def run():\n    return 1\n", encoding="utf-8")
@@ -873,6 +940,37 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(result.exit_code, 1, result.output)
             self.assertIn("Unsupported input type", result.output)
 
+    def test_commands_warn_when_project_manifest_is_missing(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            pkg = root / "pkg"
+            pkg.mkdir()
+            (pkg / "app.py").write_text("def run():\n    return 1\n", encoding="utf-8")
+
+            result = self.runner.invoke(self.main, ["gen", str(root), "--recursive"])
+            self.assertNotEqual(result.exit_code, 0, result.output)
+            self.assertIn("Run `lsdf init` first", result.output)
+            self.assertFalse((pkg / "INDEX.lsdf").exists())
+            self.assertFalse((pkg / "INDEX.detail.lsdf").exists())
+
+    def test_commands_warn_when_project_manifest_version_differs(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "project.lsdf").write_text("^demo:Python\n$lsdf:9.9.9\n", encoding="utf-8")
+            (root / "module.lsdf").write_text("@module.py\n", encoding="utf-8")
+
+            commands = [
+                ["clean", str(root), "--yes"],
+                ["sync", str(root)],
+                ["stats", str(root)],
+                ["trans", str(root / "module.lsdf")],
+            ]
+
+            for argv in commands:
+                result = self.runner.invoke(self.main, argv)
+                self.assertNotEqual(result.exit_code, 0, result.output)
+                self.assertIn("Run `lsdf init` to install or upgrade L-SDF metadata first.", result.output)
+
     def test_init_preserves_existing_agent_files(self):
         with TemporaryDirectory() as tmpdir:
             with self.runner.isolated_filesystem(temp_dir=tmpdir):
@@ -880,22 +978,52 @@ class TestCLI(unittest.TestCase):
                 lsdf_dir.mkdir()
                 existing = lsdf_dir / "lsdf_instructions.md"
                 existing.write_text("custom instructions\n", encoding="utf-8")
+                Path("CLAUDE.md").write_text("# Project\n", encoding="utf-8")
 
                 result = self.runner.invoke(self.main, ["init"])
                 self.assertEqual(result.exit_code, 0, result.output)
                 self.assertEqual(existing.read_text(encoding="utf-8"), "custom instructions\n")
                 self.assertNotIn("Created .lsdf/lsdf_instructions.md", result.output)
+                self.assertIn("Appended file from .lsdf/lsdf_instructions.md to CLAUDE.md", result.output)
+                self.assertIn("custom instructions", Path("CLAUDE.md").read_text(encoding="utf-8"))
 
     def test_init_creates_lsdfignore_with_default_entries(self):
         with TemporaryDirectory() as tmpdir:
             with self.runner.isolated_filesystem(temp_dir=tmpdir):
                 result = self.runner.invoke(self.main, ["init"])
                 self.assertEqual(result.exit_code, 0, result.output)
+                self.assertIn("Created .lsdfignore", result.output)
+                self.assertIn("Created project.lsdf", result.output)
 
                 ignore_text = Path(".lsdfignore").read_text(encoding="utf-8")
+                self.assertIn(".lsdf/\n", ignore_text)
                 self.assertIn(".pytest_cache\n", ignore_text)
                 self.assertIn(".vscode\n", ignore_text)
                 self.assertIn(".github\n", ignore_text)
+
+    def test_init_adds_lsdf_dir_to_existing_lsdfignore(self):
+        with TemporaryDirectory() as tmpdir:
+            with self.runner.isolated_filesystem(temp_dir=tmpdir):
+                Path(".lsdfignore").write_text(".git\n__pycache__\n", encoding="utf-8")
+
+                result = self.runner.invoke(self.main, ["init"])
+                self.assertEqual(result.exit_code, 0, result.output)
+                self.assertIn("Appended .lsdf/ to .lsdfignore", result.output)
+
+                ignore_text = Path(".lsdfignore").read_text(encoding="utf-8")
+                self.assertIn(".lsdf/\n", ignore_text)
+                self.assertIn(".git\n", ignore_text)
+
+    def test_init_does_not_duplicate_lsdf_dir_in_lsdfignore(self):
+        with TemporaryDirectory() as tmpdir:
+            with self.runner.isolated_filesystem(temp_dir=tmpdir):
+                Path(".lsdfignore").write_text(".lsdf/\n.git\n", encoding="utf-8")
+
+                result = self.runner.invoke(self.main, ["init"])
+                self.assertEqual(result.exit_code, 0, result.output)
+
+                ignore_text = Path(".lsdfignore").read_text(encoding="utf-8")
+                self.assertEqual(ignore_text.count(".lsdf/\n"), 1)
 
     def test_init_includes_entry_points_in_manifest(self):
         with TemporaryDirectory() as tmpdir:
@@ -975,6 +1103,7 @@ class TestCLI(unittest.TestCase):
                 self.assertEqual(result.exit_code, 0, result.output)
 
                 self.assertIn("Upgrading", result.output)
+                self.assertIn("Updated .lsdf/lsdf_instructions.md", result.output)
                 # Template file must be overwritten with current version content
                 self.assertNotEqual(
                     old_instructions.read_text(encoding="utf-8"), "old instructions\n"
@@ -1030,7 +1159,10 @@ class TestCLI(unittest.TestCase):
                     result = self.runner.invoke(self.main, ["init"])
                 self.assertEqual(result.exit_code, 0, result.output)
                 self.assertIn("Initializing L-SDF", result.output)
-                self.assertIn("Updated L-SDF instructions in CLAUDE.md", result.output)
+                self.assertIn(
+                    "Updated L-SDF instructions from .lsdf/lsdf_instructions.md in CLAUDE.md",
+                    result.output,
+                )
 
                 project_lsdf = Path("project.lsdf").read_text(encoding="utf-8")
                 self.assertIn("$lsdf:", project_lsdf)
@@ -1047,7 +1179,8 @@ class TestCLI(unittest.TestCase):
         with TemporaryDirectory() as tmpdir:
             with self.runner.isolated_filesystem(temp_dir=tmpdir):
                 # Simulate a project.lsdf from a future version
-                Path("project.lsdf").write_text("^myproject:Python\n$lsdf:99.0.0\n", encoding="utf-8")
+                old_manifest = "^myproject:Python\n$lsdf:99.0.0\n"
+                Path("project.lsdf").write_text(old_manifest, encoding="utf-8")
                 Path(".lsdf").mkdir()
                 old_content = "future instructions\n"
                 (Path(".lsdf") / "lsdf_instructions.md").write_text(old_content, encoding="utf-8")
@@ -1062,6 +1195,7 @@ class TestCLI(unittest.TestCase):
                     (Path(".lsdf") / "lsdf_instructions.md").read_text(encoding="utf-8"),
                     old_content,
                 )
+                self.assertEqual(Path("project.lsdf").read_text(encoding="utf-8"), old_manifest)
 
     def test_init_skips_templates_when_version_matches(self):
         with TemporaryDirectory() as tmpdir:
@@ -1076,7 +1210,25 @@ class TestCLI(unittest.TestCase):
                 result = self.runner.invoke(self.main, ["init"])
                 self.assertEqual(result.exit_code, 0, result.output)
                 self.assertNotIn("Upgrading", result.output)
+                self.assertNotIn("Skipped", result.output)
                 self.assertEqual(custom.read_text(encoding="utf-8"), "my custom instructions\n")
+
+    def test_init_does_not_rewrite_project_manifest_when_version_matches(self):
+        with TemporaryDirectory() as tmpdir:
+            with self.runner.isolated_filesystem(temp_dir=tmpdir):
+                import src.cli as cli_module
+
+                current_version = cli_module._package_version()
+                original_manifest = "^custom:Python\n$lsdf:" + current_version + "\n"
+                Path("project.lsdf").write_text(original_manifest, encoding="utf-8")
+
+                result = self.runner.invoke(self.main, ["init"])
+                self.assertEqual(result.exit_code, 0, result.output)
+                self.assertNotIn("Updated project.lsdf", result.output)
+                self.assertEqual(
+                    Path("project.lsdf").read_text(encoding="utf-8"),
+                    original_manifest,
+                )
 
     def test_init_refreshes_existing_project_manifest(self):
         with TemporaryDirectory() as tmpdir:

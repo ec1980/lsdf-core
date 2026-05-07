@@ -11,9 +11,10 @@ The `lsdf` command line tool is the reference implementation for generating, val
 
 - `lsdf init`: Set up project and agent rules.
 - `lsdf gen`: Auto-generate indices from source.
-- `lsdf trans`: Convert L-SDF into human-readable Markdown.
-- `lsdf sync`: Check for drift between source and indices.
 - `lsdf stats`: Estimate session cost and savings.
+- `lsdf sync`: Check for drift between source and indices.
+- `lsdf trans`: Convert L-SDF into human-readable Markdown.
+- `lsdf clean`: Remove generated indices and optional bootstrap files.
 
 ### 1. `lsdf init`
 
@@ -45,7 +46,33 @@ Scans source code to build or update `INDEX.lsdf` files.
   lsdf gen ./src --recursive --depth 2
   ```
 
-### 3. `lsdf trans` (Translate)
+### 3. `lsdf stats` (ROI Calculator)
+
+Estimates input token cost savings for L-SDF-guided versus raw-source coding sessions. Assumes prompt caching as the baseline.
+
+- **Usage:** `lsdf stats [PATH] [OPTIONS]`
+- **Options:**
+  - `--price FLOAT`: Input token cost per million tokens (default: `3.0`)
+  - `--turns INTEGER`: Turns per coding session (default: `50`)
+  - `--cache_hit_rate FLOAT`: Fraction of cached reads served from cache (default: `0.8`)
+  - `--dd FLOAT`: Fraction of turns that drill into raw source (default: `0.2`)
+  - `--verbose`: Print model assumptions and derived prices
+- **Output:** Token counts and compression ratio for source files, `INDEX.lsdf`, and `INDEX.detail.lsdf`; estimated session cost for raw source (cached) versus L-SDF with caching; and percentage savings.
+
+- **Verbose assumptions:** Includes turns per session, chars per token, drilldown rate, detail open rate, source overhead without L-SDF, drilldown size, cache hit rate, and pricing breakdown (input, cache read, cache write).
+
+### 4. `lsdf sync` (Sync)
+
+Verifies that indices are up-to-date.
+
+- **Usage:** `lsdf sync [PATH] [OPTIONS]`
+- **Arguments:**
+  - `PATH`: The directory to scan (default: `.`).
+- **Options:**
+  - `--check`: Return exit code `1` when drift is detected. Intended for Git hooks or GitHub Actions.
+- **Behavior:** Reports any directories with Python files that are missing `INDEX.lsdf`, or where the index content differs from the current source.
+
+### 5. `lsdf trans` (Translate)
 
 Converts L-SDF into Markdown.
 
@@ -64,30 +91,15 @@ Converts L-SDF into Markdown.
   lsdf trans src/auth/INDEX.lsdf | less
   ```
 
-### 4. `lsdf sync` (Sync)
+### 6. `lsdf clean` (Clean)
 
-Verifies that indices are up-to-date.
+Removes generated L-SDF files.
 
-- **Usage:** `lsdf sync [PATH] [OPTIONS]`
+- **Usage:** `lsdf clean [PATH] [OPTIONS]`
 - **Arguments:**
-  - `PATH`: The directory to scan (default: `.`).
+  - `PATH`: The directory to clean (default: `.`).
 - **Options:**
-  - `--check`: Return exit code `1` when drift is detected. Intended for Git hooks or GitHub Actions.
-- **Behavior:** Reports any directories with Python files that are missing `INDEX.lsdf`, or where the index content differs from the current source.
-
-### 5. `lsdf stats` (ROI Calculator)
-
-Estimates session cost for raw-source versus L-SDF-guided coding.
-
-- **Usage:** `lsdf stats [PATH] [OPTIONS]`
-- **Options:**
-  - `--price FLOAT`: Input token cost per million tokens (default: `3.0`)
-  - `--turns INTEGER`: Turns per coding session (default: `50`)
-  - `--cache_hit_rate FLOAT`: Fraction of cached reads served from cache (default: `0.8`)
-  - `--dd FLOAT`: Fraction of turns that drill into raw source (default: `0.2`)
-  - `--verbose`: Print model assumptions and derived prices
-- **Output:** Displays a terminal-friendly session cost report for:
-  - `Baseline A`: raw source, no caching
-  - `Baseline B`: raw source, with cache
-  - `L-SDF+cache`: cached `INDEX.lsdf` plus partial `INDEX.detail.lsdf` reads and uncached source drilldowns
-- **Verbose assumptions:** Includes turns per session, chars per token, drilldown rate, detail open rate, source overhead without L-SDF, drilldown size, cache hit rate, and pricing assumptions.
+  - `--recursive, -r`: Scan all subdirectories recursively.
+  - `--all`: Also remove bootstrap files added by `lsdf init`, including `project.lsdf`, `.lsdf/`, `.lsdfignore`, and managed LSDF blocks in agent config files.
+  - `--yes, -y`: Do not prompt before deleting or editing files.
+- **Behavior:** By default, removes generated `INDEX.lsdf`, `INDEX.detail.lsdf`, and `.lsdf/meta.json`.

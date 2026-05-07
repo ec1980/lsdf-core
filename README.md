@@ -1,6 +1,8 @@
 
 # L-SDF: Latent-Structured Documentation Format
 
+[![PyPI version](https://img.shields.io/pypi/v/lsdf-core.svg)](https://pypi.org/project/lsdf-core/)
+
 *Cuts AI input token costs significantly compared with reading source in navigation-heavy coding sessions. Works with Claude Code, Cursor, and Copilot today.*
 
 ![LSDF demo](https://github.com/user-attachments/assets/4049c722-a182-42d1-aa94-81f466fc2796)
@@ -298,9 +300,10 @@ In L-SDF, sigils act as single-character semantic tags. Instead of wasting token
 
 * `lsdf init`: Bootstrap a repo for L-SDF.
 * `lsdf gen`: Generate or update `INDEX.lsdf` and `INDEX.detail.lsdf` from source code.
+* `lsdf stats`: Estimate session cost and savings.
 * `lsdf sync`: Verify that indices match the current source code.
 * `lsdf trans`: Translate `.lsdf` to Markdown.
-* `lsdf stats`: Estimate session cost and savings.
+* `lsdf clean`: Remove generated indices and optional bootstrap files.
 
 > See `docs/CLI.md` for more details.
 
