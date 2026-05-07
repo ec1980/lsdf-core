@@ -1,7 +1,7 @@
 
 # L-SDF: Latent-Structured Documentation Format
 
-[![PyPI version](https://img.shields.io/pypi/v/lsdf-core.svg)](https://pypi.org/project/lsdf-core/)
+[![PyPI version](https://img.shields.io/pypi/v/lsdf-core)](https://pypi.org/project/lsdf-core/)
 
 *Cuts AI input token costs significantly compared with reading source in navigation-heavy coding sessions. Works with Claude Code, Cursor, and Copilot today.*
 
