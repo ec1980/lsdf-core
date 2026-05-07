@@ -70,6 +70,14 @@ def _write_meta(base_path, meta):
 
 LSDF_SECTION_START = "<!-- LSDF:START -->"
 LSDF_SECTION_END = "<!-- LSDF:END -->"
+COMMAND_HELP_ORDER = ["init", "gen", "stats", "sync", "trans", "clean"]
+
+
+class OrderedHelpGroup(click.Group):
+    def list_commands(self, ctx):
+        commands = list(super().list_commands(ctx))
+        rank = {name: i for i, name in enumerate(COMMAND_HELP_ORDER)}
+        return sorted(commands, key=lambda name: (rank.get(name, len(rank)), name))
 
 
 def _wrap_lsdf_instructions(instructions_text):
@@ -186,6 +194,48 @@ def _read_text_if_exists(path):
             return f.read()
     except OSError:
         return None
+
+
+def _ensure_ignore_entry(path, entry):
+    existing = _read_text_if_exists(path)
+    normalized_entry = entry.strip()
+
+    if existing is None:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(normalized_entry + "\n")
+        return "created"
+
+    lines = [line.strip() for line in existing.splitlines()]
+    if normalized_entry in lines:
+        return "unchanged"
+
+    updated = existing
+    if updated and not updated.endswith("\n"):
+        updated += "\n"
+    updated += normalized_entry + "\n"
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(updated)
+    return "appended"
+
+
+def _remove_managed_lsdf_block(existing):
+    if LSDF_SECTION_START not in existing or LSDF_SECTION_END not in existing:
+        return None
+
+    start_idx = existing.index(LSDF_SECTION_START)
+    end_idx = existing.index(LSDF_SECTION_END) + len(LSDF_SECTION_END)
+    before = existing[:start_idx].rstrip()
+    after = existing[end_idx:].lstrip()
+
+    if before and after:
+        new_content = before + "\n\n" + after
+    else:
+        new_content = before or after
+
+    if new_content and not new_content.endswith("\n"):
+        new_content += "\n"
+    return new_content
 
 
 def _detect_frameworks_and_deps(project_root):
@@ -334,6 +384,26 @@ def _read_project_lsdf_version(project_lsdf_path):
     return "1.0.0"
 
 
+def _require_init_and_matching_version(project_root):
+    project_lsdf_path = os.path.join(project_root, "project.lsdf")
+    stored_version = _read_project_lsdf_version(project_lsdf_path)
+    current_version = _package_version()
+
+    if stored_version is None:
+        raise click.ClickException(
+            "This repo is missing project.lsdf. Run `lsdf init` first to initialize or upgrade L-SDF metadata."
+        )
+
+    if stored_version == "1.0.0":
+        return
+
+    if stored_version != current_version:
+        raise click.ClickException(
+            f"This repo was initialized with lsdf-core {stored_version}, but the installed CLI is {current_version}. "
+            "Run `lsdf init` to install or upgrade L-SDF metadata first.",
+        )
+
+
 def _read_entry_points(project_root):
     """Read [project.scripts] entry points from pyproject.toml.
     Returns a list of '!name=module:function' strings.
@@ -386,16 +456,19 @@ def _build_project_manifest(project_root):
     return "\n".join(lines) + "\n"
 
 
-@click.group()
+@click.group(
+    cls=OrderedHelpGroup,
+    epilog='Use "lsdf COMMAND --help" to show help for a command.',
+)
 @click.option('--verbose', '-v', is_flag=True, help='Enable debug logging.')
 @click.version_option(version=_package_version(), prog_name='lsdf')
 @click.pass_context
 def main(ctx, verbose):
-    """L-SDF: The Agent-First Documentation Tool."""
+    """L-SDF: The Agent-First Source Indexing Tool."""
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
 
-@main.command()
+@main.command(short_help='Scans source code to generate .lsdf indices. Use --recursive to scan the entire repo.')
 @click.argument('path', default='.')
 @click.option('--recursive', '-r', is_flag=True, help='Scan subdirectories')
 @click.option('--depth', type=click.IntRange(min=0), help='Limit recursion depth.')
@@ -405,6 +478,7 @@ def gen(ctx, path, recursive, depth):
     verbose = ctx.obj.get("verbose", False)
     base_path = os.path.abspath(path)
     project_root = _find_project_root(base_path)
+    _require_init_and_matching_version(project_root)
     ignored = _load_lsdfignore(project_root)
 
     meta = _read_meta(project_root) or {"generator": "lsdf-core", "indices": {}}
@@ -429,9 +503,10 @@ def gen(ctx, path, recursive, depth):
 
         if nav:
             index_path = os.path.join(root, "INDEX.lsdf")
+            index_exists = os.path.exists(index_path)
             with open(index_path, "w") as f:
                 f.write(nav)
-            click.echo(f"✅ Created: {index_path}")
+            click.echo(f"✅ {'Updated' if index_exists else 'Created'}: {index_path}")
             meta["indices"][os.path.relpath(index_path, project_root)] = {
                 "profile": "nav",
                 "source_files": source_files,
@@ -440,9 +515,10 @@ def gen(ctx, path, recursive, depth):
             }
         if detail:
             detail_path = os.path.join(root, "INDEX.detail.lsdf")
+            detail_exists = os.path.exists(detail_path)
             with open(detail_path, "w") as f:
                 f.write(detail)
-            click.echo(f"✅ Created: {detail_path}")
+            click.echo(f"✅ {'Updated' if detail_exists else 'Created'}: {detail_path}")
             meta["indices"][os.path.relpath(detail_path, project_root)] = {
                 "profile": "detail",
                 "source_files": source_files,
@@ -462,6 +538,8 @@ def trans(file, output):
 
     if not file.endswith('.lsdf'):
         raise click.ClickException("Unsupported input type. Use a .lsdf file.")
+
+    _require_init_and_matching_version(_find_project_root(os.path.dirname(os.path.abspath(file)) or "."))
 
     with open(file, 'r') as f:
         content = f.read()
@@ -495,6 +573,10 @@ def init(ci):
     current_version = _package_version()
     project_manifest_exists = Path("project.lsdf").exists()
     stored_version = _read_project_lsdf_version("project.lsdf")
+    project_manifest_text = _read_text_if_exists("project.lsdf") if project_manifest_exists else None
+    legacy_manifest_upgrade = bool(
+        project_manifest_exists and project_manifest_text is not None and "$lsdf:" not in project_manifest_text
+    )
     agent_configs = [
         Path("CLAUDE.md"),
         Path("AGENTS.md"),
@@ -524,6 +606,7 @@ def init(ci):
         missing_manifest_upgrade = has_lsdf_template_set or has_lsdf_protocol_in_agent
     is_upgrade = (
         missing_manifest_upgrade or
+        legacy_manifest_upgrade or
         (
             stored_version is not None and
             _version_tuple(stored_version) < _version_tuple(current_version)
@@ -556,31 +639,37 @@ def init(ci):
                 ".pytest_cache\n"
                 "venv\n"
                 "node_modules\n"
-                ".lsdf\n"
+                ".lsdf/\n"
                 ".vscode\n"
                 ".github\n"
             )
+        click.echo("✅ Created .lsdfignore")
+    elif _ensure_ignore_entry(".lsdfignore", ".lsdf/") == "appended":
+        click.echo("✅ Appended .lsdf/ to .lsdfignore")
 
     project_manifest = _build_project_manifest(str(Path.cwd()))
-    with Path("project.lsdf").open("w", encoding="utf-8") as f:
-        f.write(project_manifest)
+    if not project_manifest_exists:
+        with Path("project.lsdf").open("w", encoding="utf-8") as f:
+            f.write(project_manifest)
+        click.echo("✅ Created project.lsdf")
+    elif is_upgrade:
+        with Path("project.lsdf").open("w", encoding="utf-8") as f:
+            f.write(project_manifest)
+        click.echo("✅ Updated project.lsdf")
 
     # 5. Copy template files into .lsdf/ (overwrite on upgrade)
     if source_dir.exists():
         created_files = []
         updated_files = []
-        skipped_files = 0
         for template in source_dir.glob("*"):
             if template.is_file():
                 destination = target_lsdf_dir / template.name
                 try:
                     if template.resolve() == destination.resolve():
-                        skipped_files += 1
                         continue
                 except OSError:
                     pass
                 if destination.exists() and (not is_upgrade or is_newer):
-                    skipped_files += 1
                     continue
                 existed = destination.exists()
                 shutil.copy(template, destination)
@@ -595,11 +684,10 @@ def init(ci):
     else:
         click.echo("⚠️  Template source not found. Creating basic placeholder rules.")
         fallback_file = target_lsdf_dir / "lsdf_instructions.md"
-        if fallback_file.exists():
-            click.echo(f"ℹ️ Preserved existing fallback rule: {fallback_file}")
-        else:
+        if not fallback_file.exists():
             with fallback_file.open("w") as f:
                 f.write("# L-SDF Protocol\nRead .lsdf files first.")
+            click.echo(f"✅ Created {fallback_file}")
 
     # 6. Optionally deploy GitHub Actions workflow from .lsdf/ to .github/workflows/
     if ci:
@@ -609,9 +697,7 @@ def init(ci):
             click.echo("⚠️  Workflow template not found in package.")
         else:
             workflow_dst.parent.mkdir(parents=True, exist_ok=True)
-            if workflow_dst.exists():
-                click.echo(f"ℹ️  Skipped {workflow_dst} (already exists)")
-            else:
+            if not workflow_dst.exists():
                 shutil.copy(workflow_src, workflow_dst)
                 click.echo(f"✅ Added GitHub Actions workflow to {workflow_dst}")
 
@@ -638,23 +724,112 @@ def init(ci):
                     if not new_content.endswith("\n"):
                         new_content += "\n"
                     config.write_text(new_content, encoding="utf-8")
-                    click.echo(f"✅ Updated L-SDF instructions in {config}")
-                else:
-                    click.echo(f"ℹ️  Skipped {config} (L-SDF already present)")
+                    click.echo(f"✅ Updated L-SDF instructions from .lsdf/lsdf_instructions.md in {config}")
             elif "L-SDF Protocol" in existing:
                 if is_upgrade:
                     migrated = _replace_legacy_lsdf_section(existing, managed_block)
                     if migrated is not None:
                         config.write_text(migrated, encoding="utf-8")
-                        click.echo(f"✅ Updated L-SDF instructions in {config}")
-                else:
-                    click.echo(f"ℹ️  Skipped {config} (L-SDF already present)")
+                        click.echo(f"✅ Updated L-SDF instructions from .lsdf/lsdf_instructions.md in {config}")
             else:
                 with config.open("a", encoding="utf-8") as f:
                     if existing and not existing.endswith("\n"):
                         f.write("\n")
                     f.write("\n" + managed_block)
-                click.echo(f"✅ Appended L-SDF instructions to {config}")
+                click.echo(f"✅ Appended file from .lsdf/lsdf_instructions.md to {config}")
+
+
+@main.command()
+@click.argument('path', default='.')
+@click.option('--recursive', '-r', is_flag=True, help='Scan subdirectories recursively.')
+@click.option(
+    '--all',
+    'remove_all',
+    is_flag=True,
+    help='Also remove bootstrap files and managed LSDF config added by lsdf init.',
+)
+@click.option('--yes', '-y', is_flag=True, help='Do not prompt before removing files.')
+def clean(path, recursive, remove_all, yes):
+    """Removes generated L-SDF files."""
+    import shutil
+    from pathlib import Path
+
+    target_path = os.path.abspath(path)
+    project_root = _find_project_root(target_path)
+    _require_init_and_matching_version(project_root)
+    scope = "bootstrap files and generated L-SDF files" if remove_all else "generated L-SDF files"
+    if not yes:
+        click.confirm(f"Remove {scope} under {target_path}?", abort=True)
+
+    touched = False
+
+    for root, _, _, _ in _iter_walk_roots(path, recursive, depth=None):
+        for name in ("INDEX.lsdf", "INDEX.detail.lsdf"):
+            file_path = os.path.join(root, name)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                click.echo(f"✅ Deleted {file_path}")
+                touched = True
+
+    meta_path = os.path.join(project_root, ".lsdf", "meta.json")
+    if os.path.exists(meta_path):
+        os.remove(meta_path)
+        click.echo(f"✅ Deleted {meta_path}")
+        touched = True
+
+    if remove_all:
+        project_manifest = Path(project_root) / "project.lsdf"
+        if project_manifest.exists():
+            project_manifest.unlink()
+            click.echo(f"✅ Deleted {project_manifest}")
+            touched = True
+
+        lsdf_dir = Path(project_root) / ".lsdf"
+        if lsdf_dir.exists():
+            shutil.rmtree(lsdf_dir)
+            click.echo(f"✅ Deleted {lsdf_dir}")
+            touched = True
+
+        lsdfignore_path = Path(project_root) / ".lsdfignore"
+        if lsdfignore_path.exists():
+            lsdfignore_path.unlink()
+            click.echo(f"✅ Deleted {lsdfignore_path}")
+            touched = True
+
+        workflow_src = Path(__file__).parent / "_templates" / "update-lsdf.yml"
+        workflow_dst = Path(project_root) / ".github" / "workflows" / "update-lsdf.yml"
+        if workflow_dst.exists() and workflow_src.exists():
+            try:
+                existing_workflow = workflow_dst.read_text(encoding="utf-8")
+                template_workflow = workflow_src.read_text(encoding="utf-8")
+            except OSError:
+                existing_workflow = None
+                template_workflow = None
+            if existing_workflow is not None and existing_workflow == template_workflow:
+                workflow_dst.unlink()
+                click.echo(f"✅ Deleted {workflow_dst}")
+                touched = True
+
+        for config_name in (
+            "CLAUDE.md",
+            "AGENTS.md",
+            ".cursorrules",
+            ".github/copilot-instructions.md",
+            "CONVENTIONS.md",
+        ):
+            config_path = Path(project_root) / config_name
+            existing = _read_text_if_exists(str(config_path))
+            if existing is None:
+                continue
+            updated = _remove_managed_lsdf_block(existing)
+            if updated is None:
+                continue
+            config_path.write_text(updated, encoding="utf-8")
+            click.echo(f"✅ Updated {config_path}")
+            touched = True
+
+    if not touched:
+        click.echo("✅ No L-SDF files found to remove.")
 
 @main.command()
 @click.argument('path', default='.')
@@ -665,6 +840,7 @@ def sync(ctx, path, check):
     verbose = ctx.obj.get("verbose", False)
     base_path = os.path.abspath(path)
     project_root = _find_project_root(base_path)
+    _require_init_and_matching_version(project_root)
     ignored = _load_lsdfignore(project_root)
     stale_dirs = []
 
@@ -740,7 +916,7 @@ def sync(ctx, path, check):
 
     click.echo("✅ All indices are up to date.")
 
-@main.command()
+@main.command(short_help='Calculates token savings (Source Code vs. L-SDF Indices).')
 @click.argument('path', default='.')
 @click.option('--price', type=float, default=3.0, show_default=True,
               help='Input token cost per million tokens.')
@@ -753,6 +929,7 @@ def sync(ctx, path, check):
 @click.option('--verbose', is_flag=True, help='Print model assumptions.')
 def stats(path, price, turns, cache_hit_rate, dd, verbose):
     """Calculates token savings (Source Code vs. L-SDF Indices)."""
+    _require_init_and_matching_version(_find_project_root(os.path.abspath(path)))
 
     # ── Model configuration ──────────────────────────────────────────────────
     SOURCE_EXTENSIONS  = {'.py', '.js', '.ts', '.tsx', '.jsx', '.go', '.rs',

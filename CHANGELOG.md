@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.1.6 - 2026-05-07
+
+### Changed
+
+- Added `lsdf clean` with support for removing generated index files by default and undoing `lsdf init` bootstrap files with `--all`, including managed LSDF blocks in agent config files.
+- Improved `lsdf init` file reporting and bootstrap behavior: ensured `.lsdf/` is present in `.lsdfignore`, limited output to touched files, and avoided rewriting `project.lsdf` on same-version reruns.
+- Updated agent-instruction messaging so append and upgrade flows explicitly reference `.lsdf/lsdf_instructions.md` as the source file.
+- Refreshed `README.md` and `docs/CLI.md` to document `lsdf clean` and match the CLI help command order.
+
 ## 1.1.5 - 2026-05-05
 
 ### Changed
