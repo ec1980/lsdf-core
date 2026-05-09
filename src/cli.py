@@ -196,6 +196,14 @@ def _read_text_if_exists(path):
         return None
 
 
+def _render_template_text(template_name, current_version):
+    template_path = os.path.join(os.path.dirname(__file__), "_templates", template_name)
+    template_text = _read_text_if_exists(template_path)
+    if template_text is None:
+        return None
+    return template_text.replace("{{ LSDF_CORE_VERSION }}", current_version)
+
+
 def _ensure_ignore_entry(path, entry):
     existing = _read_text_if_exists(path)
     normalized_entry = entry.strip()
@@ -672,7 +680,13 @@ def init(ci):
                 if destination.exists() and (not is_upgrade or is_newer):
                     continue
                 existed = destination.exists()
-                shutil.copy(template, destination)
+                if template.name == "update-lsdf.yml":
+                    rendered = _render_template_text(template.name, current_version)
+                    if rendered is None:
+                        continue
+                    destination.write_text(rendered, encoding="utf-8")
+                else:
+                    shutil.copy(template, destination)
                 if existed:
                     updated_files.append(destination.name)
                 else:
@@ -801,7 +815,7 @@ def clean(path, recursive, remove_all, yes):
         if workflow_dst.exists() and workflow_src.exists():
             try:
                 existing_workflow = workflow_dst.read_text(encoding="utf-8")
-                template_workflow = workflow_src.read_text(encoding="utf-8")
+                template_workflow = _render_template_text("update-lsdf.yml", _package_version())
             except OSError:
                 existing_workflow = None
                 template_workflow = None
