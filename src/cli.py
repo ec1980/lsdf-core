@@ -512,7 +512,7 @@ def gen(ctx, path, recursive, depth):
         if nav:
             index_path = os.path.join(root, "INDEX.lsdf")
             index_exists = os.path.exists(index_path)
-            with open(index_path, "w") as f:
+            with open(index_path, "w", encoding="utf-8") as f:
                 f.write(nav)
             click.echo(f"✅ {'Updated' if index_exists else 'Created'}: {index_path}")
             meta["indices"][os.path.relpath(index_path, project_root)] = {
@@ -524,7 +524,7 @@ def gen(ctx, path, recursive, depth):
         if detail:
             detail_path = os.path.join(root, "INDEX.detail.lsdf")
             detail_exists = os.path.exists(detail_path)
-            with open(detail_path, "w") as f:
+            with open(detail_path, "w", encoding="utf-8") as f:
                 f.write(detail)
             click.echo(f"✅ {'Updated' if detail_exists else 'Created'}: {detail_path}")
             meta["indices"][os.path.relpath(detail_path, project_root)] = {
@@ -549,13 +549,13 @@ def trans(file, output):
 
     _require_init_and_matching_version(_find_project_root(os.path.dirname(os.path.abspath(file)) or "."))
 
-    with open(file, 'r') as f:
+    with open(file, 'r', encoding='utf-8') as f:
         content = f.read()
-    
+
     result = to_markdown(content)
-    
+
     if output:
-        with open(output, 'w') as f:
+        with open(output, 'w', encoding='utf-8') as f:
             f.write(result)
         click.echo(f"✅ Translated to {output}")
     else:
@@ -699,7 +699,7 @@ def init(ci):
         click.echo("⚠️  Template source not found. Creating basic placeholder rules.")
         fallback_file = target_lsdf_dir / "lsdf_instructions.md"
         if not fallback_file.exists():
-            with fallback_file.open("w") as f:
+            with fallback_file.open("w", encoding="utf-8") as f:
                 f.write("# L-SDF Protocol\nRead .lsdf files first.")
             click.echo(f"✅ Created {fallback_file}")
 
@@ -903,7 +903,7 @@ def sync(ctx, path, check):
             if not os.path.exists(nav_path):
                 stale_dirs.append((root, "missing INDEX.lsdf"))
                 continue
-            with open(nav_path, "r") as f:
+            with open(nav_path, "r", encoding="utf-8") as f:
                 current_nav = f.read()
             expected_nav, expected_detail = _build_index_content(root, files, verbose=False)
             if expected_nav is None:
@@ -912,7 +912,7 @@ def sync(ctx, path, check):
                 stale_dirs.append((root, "INDEX.lsdf content differs from generated output"))
                 continue
             if os.path.exists(detail_path) and expected_detail:
-                with open(detail_path, "r") as f:
+                with open(detail_path, "r", encoding="utf-8") as f:
                     current_detail = f.read()
                 if current_detail.rstrip() != expected_detail.rstrip():
                     stale_dirs.append((root, "INDEX.detail.lsdf content differs from generated output"))

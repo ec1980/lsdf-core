@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.1.7 - 2026-06-01
+
+### Fixed
+
+- `lsdf init --ci` now renders the generated GitHub Actions workflow with the currently installed `lsdf-core` version pinned in the install step, preventing CI from pulling a newer PyPI release and rewriting indices with different output.
+- All file I/O in `gen`, `sync`, and `trans` now explicitly passes `encoding="utf-8"` to `open()`. On Windows the previous default (`cp1252`) silently mangled Unicode characters in docstrings (e.g. em dash `—`, multiplication sign `×`) written into `INDEX.lsdf` and `INDEX.detail.lsdf`.
+
 ## 1.1.6 - 2026-05-07
 
 ### Changed
