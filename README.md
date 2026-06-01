@@ -1,7 +1,7 @@
 
 # L-SDF: Latent-Structured Documentation Format
 
-[![PyPI version](https://img.shields.io/pypi/v/lsdf-core.svg)](https://pypi.org/project/lsdf-core/)
+[![PyPI version](https://img.shields.io/pypi/v/lsdf-core)](https://pypi.org/project/lsdf-core/)
 
 *Cuts AI input token costs significantly compared with reading source in navigation-heavy coding sessions. Works with Claude Code, Cursor, and Copilot today.*
 
@@ -209,7 +209,7 @@ To also add a GitHub Actions workflow that auto-regenerates indices on every pus
 lsdf init --ci
 ```
 
-This adds `.github/workflows/update-lsdf.yml`. On every push it installs `lsdf-core` from PyPI, regenerates `INDEX.lsdf` and `INDEX.detail.lsdf` files, and commits any changes back to the branch. Requires GitHub Actions to have write permission on the repository. Re-running `lsdf init --ci` is safe — it will not overwrite an existing workflow.
+This adds `.github/workflows/update-lsdf.yml`. On every push it installs the same `lsdf-core` version that generated the workflow, regenerates `INDEX.lsdf` and `INDEX.detail.lsdf` files, and commits any changes back to the branch. Requires GitHub Actions to have write permission on the repository. Re-running `lsdf init --ci` is safe — it will not overwrite an existing workflow.
 
 ### 3. Generate Indices
 

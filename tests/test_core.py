@@ -1213,6 +1213,17 @@ class TestCLI(unittest.TestCase):
                 self.assertNotIn("Skipped", result.output)
                 self.assertEqual(custom.read_text(encoding="utf-8"), "my custom instructions\n")
 
+    def test_init_ci_renders_workflow_with_installed_version(self):
+        with TemporaryDirectory() as tmpdir:
+            with self.runner.isolated_filesystem(temp_dir=tmpdir):
+                with patch("src.cli._package_version", return_value="1.2.3"):
+                    result = self.runner.invoke(self.main, ["init", "--ci"])
+
+                self.assertEqual(result.exit_code, 0, result.output)
+                workflow = Path(".github/workflows/update-lsdf.yml").read_text(encoding="utf-8")
+                self.assertIn("python -m pip install lsdf-core==1.2.3", workflow)
+                self.assertNotIn("{{ LSDF_CORE_VERSION }}", workflow)
+
     def test_init_does_not_rewrite_project_manifest_when_version_matches(self):
         with TemporaryDirectory() as tmpdir:
             with self.runner.isolated_filesystem(temp_dir=tmpdir):
