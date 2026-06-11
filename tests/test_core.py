@@ -1014,6 +1014,41 @@ class TestCLI(unittest.TestCase):
                 self.assertIn(".lsdf/\n", ignore_text)
                 self.assertIn(".git\n", ignore_text)
 
+    def test_init_creates_gitignore_with_meta_json_entry(self):
+        with TemporaryDirectory() as tmpdir:
+            with self.runner.isolated_filesystem(temp_dir=tmpdir):
+                result = self.runner.invoke(self.main, ["init"])
+                self.assertEqual(result.exit_code, 0, result.output)
+                self.assertIn("Created .gitignore with .lsdf/meta.json", result.output)
+
+                ignore_text = Path(".gitignore").read_text(encoding="utf-8")
+                self.assertIn(".lsdf/meta.json\n", ignore_text)
+
+    def test_init_appends_meta_json_to_existing_gitignore(self):
+        with TemporaryDirectory() as tmpdir:
+            with self.runner.isolated_filesystem(temp_dir=tmpdir):
+                Path(".gitignore").write_text("__pycache__/\n", encoding="utf-8")
+
+                result = self.runner.invoke(self.main, ["init"])
+                self.assertEqual(result.exit_code, 0, result.output)
+                self.assertIn("Appended .lsdf/meta.json to .gitignore", result.output)
+
+                ignore_text = Path(".gitignore").read_text(encoding="utf-8")
+                self.assertIn("__pycache__/\n", ignore_text)
+                self.assertIn(".lsdf/meta.json\n", ignore_text)
+
+    def test_init_does_not_duplicate_meta_json_in_gitignore(self):
+        with TemporaryDirectory() as tmpdir:
+            with self.runner.isolated_filesystem(temp_dir=tmpdir):
+                Path(".gitignore").write_text(".lsdf/meta.json\n", encoding="utf-8")
+
+                result = self.runner.invoke(self.main, ["init"])
+                self.assertEqual(result.exit_code, 0, result.output)
+                self.assertNotIn("gitignore", result.output.lower())
+
+                ignore_text = Path(".gitignore").read_text(encoding="utf-8")
+                self.assertEqual(ignore_text.count(".lsdf/meta.json\n"), 1)
+
     def test_init_does_not_duplicate_lsdf_dir_in_lsdfignore(self):
         with TemporaryDirectory() as tmpdir:
             with self.runner.isolated_filesystem(temp_dir=tmpdir):

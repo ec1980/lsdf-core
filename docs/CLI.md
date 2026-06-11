@@ -23,6 +23,7 @@ Bootstraps the current directory with L-SDF configuration.
 - **Usage:** `lsdf init [OPTIONS]`
 - **Action:**
   - Creates `.lsdfignore` (defaulting to node_modules, `__pycache__`, .git).
+  - Adds `.lsdf/meta.json` to `.gitignore` (creating the file if needed) so local generator state doesn't cause merge conflicts.
   - Creates `project.lsdf` with the root `^` sigil.
   - Creates `.lsdf/` folder with AI instruction files, without overwriting files that already exist.
   - Appends L-SDF instructions to any agent config files found (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, etc.).

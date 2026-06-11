@@ -655,6 +655,14 @@ def init(ci):
     elif _ensure_ignore_entry(".lsdfignore", ".lsdf/") == "appended":
         click.echo("✅ Appended .lsdf/ to .lsdfignore")
 
+    # .lsdf/meta.json holds local generator state (timestamps, hashes) and
+    # changes on every `lsdf gen`/`lsdf sync`, so it shouldn't be committed.
+    gitignore_result = _ensure_ignore_entry(".gitignore", ".lsdf/meta.json")
+    if gitignore_result == "created":
+        click.echo("✅ Created .gitignore with .lsdf/meta.json")
+    elif gitignore_result == "appended":
+        click.echo("✅ Appended .lsdf/meta.json to .gitignore")
+
     project_manifest = _build_project_manifest(str(Path.cwd()))
     if not project_manifest_exists:
         with Path("project.lsdf").open("w", encoding="utf-8") as f:
