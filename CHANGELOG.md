@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.1.8 - 2026-06-11
+
+### Changed
+
+- `lsdf init` now adds `.lsdf/meta.json` to `.gitignore` (creating the file if needed), since that file holds local generator state that changes on every `gen`/`sync` run and shouldn't be committed.
+
 ## 1.1.7 - 2026-06-01
 
 ### Fixed
